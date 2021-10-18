@@ -85,13 +85,14 @@ public class Network
     * @param numin number of inputs
     * @param numhid number of hidden nodes
     */
-   public Network(boolean training, int numIters, double initialLambda, double randstart, double randend, int numin, int numhid, int numout, double tresh)
+   public Network(boolean training, int numIters, double initialLambda, double randstart, 
+                        double randend, int numin, int numhid, int numout, double tresh)
    {
       train = training;
       N_HIDDENS = numhid;
       N_INPUTS = numin;
       N_OUTPUTS = numout;
-      N_LAYERS = 2;           //excluding output layer since no connection leaves the output layer
+      N_LAYERS = 2;                          //excluding output layer since no connection leaves the output layer
       
       
       
@@ -99,15 +100,15 @@ public class Network
       TOT_THRESH = N_OUTPUTS * 2 * E_THRESH; //2 is a constant that I picked
       
       
-      configureNetwork();
-         
       N_ITERS = numIters;
-      curr_iters = 0;
       lambda = initialLambda;
-      repeat = true;
       
       start = randstart;
       end = randend;
+      
+      configureNetwork();                    //initializes fundamental arrays
+         
+      
    }
    
    /*
