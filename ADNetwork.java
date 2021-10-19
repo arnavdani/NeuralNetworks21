@@ -134,11 +134,11 @@ public class Network
       outputs = new double[N_OUTPUTS];
       omega = new double[N_OUTPUTS];
       
-      int dimCount = Math.max(N_INPUTS, N_HIDDENS); //to ensure all connections are represented
+      int dimCount = Math.max(N_INPUTS, N_HIDDENS); 
+      dimCount = Math.max(dimCount, N_OUTPUTS);           //to ensure all connections are represented
       
       weights = new double[N_LAYERS][dimCount][dimCount]; //weights are between layers A-B and B-C
-      
-      setWeights(); 
+       
       
       resetNetwork();
    }
@@ -441,6 +441,7 @@ public class Network
        * give values to the weights and initializes the inputs
        * being passed in through the network
        */
+      setWeights();
       setInputs();
       setTargets(); //temporary - helps split between the 3 output cases
       
@@ -892,7 +893,7 @@ public class Network
       double minR = -1.0;
       double maxR = 1.5;
       int inNum = 2;
-      int hidNum = 5;
+      int hidNum = 2;
       int outNum = 3;
       double eThresh = 0.1;
       
