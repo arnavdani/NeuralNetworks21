@@ -1,4 +1,7 @@
 import java.util.Arrays;
+import java.io.FileWriter;
+import java.io.PrintWriter;
+import java.io.IOException;
 
 /**
  * 
@@ -50,6 +53,7 @@ public class Network
    
    boolean repeat;               //says whether to do another training pass
    boolean train;                //says whether the network is training or running
+   boolean preload;              //whether to use preloaded weights or fixed weights
    
    
    /*
@@ -59,17 +63,21 @@ public class Network
    double[] thetai;
    double[] thetaj;        
    double[] psiLowerI;
-   double partialsJ;
-   double deltaWeightJ;
    double[][] deltaWeightsJ;
    final double E_THRESH;        //error threshold for an individual case
    final double TOT_THRESH;      //total combined error for all cases
    
    double omegaJ;
    double upperPsiJ;
-   double partialsKJ;
-   double deltaWeightKJ;
    double[][] deltaWeightsK;
+   
+   /*
+    * calculating runtime
+    */
+   long startTime;
+   long endTime;
+   long elapsed;
+   
    
       
    /**
@@ -85,10 +93,13 @@ public class Network
     * @param numin number of inputs
     * @param numhid number of hidden nodes
     */
-   public Network(boolean training, int numIters, double initialLambda, double randstart, 
+   public Network(boolean training, boolean preloaded, int numIters, double initialLambda, double randstart, 
                         double randend, int numin, int numhid, int numout, double tresh)
    {
+      
       train = training;
+      preload = preloaded;
+      
       N_HIDDENS = numhid;
       N_INPUTS = numin;
       N_OUTPUTS = numout;
@@ -109,7 +120,7 @@ public class Network
       configureNetwork();                    //initializes fundamental arrays
          
       
-   }
+   } //public Network(....)
    
    /*
     * Determines whether the program is training or testing
@@ -122,26 +133,37 @@ public class Network
    
    /**
     * Initializes all the arrays, sets the hard coded weights, and updates all the error checks
+    * 
     */
    public void configureNetwork()
    {  
+      if (train)
+      {
+         thetaj = new double[N_HIDDENS];
+         thetai = new double[N_OUTPUTS];
+         deltaWeightsJ = new double[N_HIDDENS][N_OUTPUTS];
+         deltaWeightsK = new double[N_INPUTS][N_HIDDENS];
+         psiLowerI = new double[N_OUTPUTS];
+         omega = new double[N_OUTPUTS];
+         //omegaJ = new double[N_HIDDENS];
+      }
+      
       hiddens = new double[N_HIDDENS];
-      thetaj = new double[N_HIDDENS];
-      thetai = new double[N_OUTPUTS];
-      deltaWeightsJ = new double[N_HIDDENS][N_OUTPUTS];
-      deltaWeightsK = new double[N_INPUTS][N_HIDDENS];
-      psiLowerI = new double[N_OUTPUTS];
       outputs = new double[N_OUTPUTS];
-      omega = new double[N_OUTPUTS];
+     
       
       int dimCount = Math.max(N_INPUTS, N_HIDDENS); 
       dimCount = Math.max(dimCount, N_OUTPUTS);           //to ensure all connections are represented
       
       weights = new double[N_LAYERS][dimCount][dimCount]; //weights are between layers A-B and B-C
-       
+      
+      if (preload)
+         setWeights();
+      else
+         randomizeWeights();
       
       resetNetwork();
-   }
+   } //public void configureNetwork()
    
    
    /**
@@ -225,7 +247,7 @@ public class Network
       weights[1][4][0] = w140;
       weights[1][4][1] = w141;
       weights[1][4][2] = w142;
-   }
+   } //public void setWeights()
    
    /**
     * initializes the arrays of inputs
@@ -265,7 +287,7 @@ public class Network
       inputs[3][0] = 1.0;
       inputs[3][1] = 1.0;        
       
-   }
+   } //public void setInputs()
    
    /**
     * Initializes the array of ground truths following the same convention
@@ -317,7 +339,7 @@ public class Network
       truthtable[2][1] = 1;
       truthtable[2][2] = 1;
       truthtable[2][3] = 0;
-   }
+   } //public void setTargets()
       
    /**
     * resets all mutable instance variables to their initial, starting value
@@ -337,7 +359,7 @@ public class Network
       {
          exitConditions[i] = false;
       }
-   }
+   } //public void resetNetwork()
    
    /**
     * Activation function
@@ -353,6 +375,20 @@ public class Network
    public double activate(double x)
    {
       return  1.0 / (1.0 + Math.exp(-x));
+   }
+   
+   /**
+    * derivative of the activation function
+    * 
+    * the current activation function is sigmoid: the derivative is f(1-f)
+    * 
+    * @param x the input value to pass through the derivative
+    * @return the value after being passed through the function 
+    */
+   public double actDeriv(double x)
+   {
+      double act = activate(x);
+      return act * (1.0 - act);
    }
    
    /**
@@ -375,17 +411,51 @@ public class Network
          }
          
          hiddens[j] = activate(val);
+         
+      } //for (int j = 0; j < N_HIDDENS; j++)
+   } //public void calcHiddens(int num)
+   
+   
+   
+   /**
+    * Used for training
+    * 
+    * calculates the value of the activations in the hidden layers
+    * using dot products of the weights of the input layers
+    * 
+    * uses variable val to avoid += from messing up values in the hidden layer
+    * 
+    * stores information for training
+    * @param num refers to the input type
+    */
+   public void trainCalcHiddens(int num)
+   {
+      double val = 0.0;
+      for (int j = 0; j < N_HIDDENS; j++)
+      {
+         val = 0.0;    
+         
+         for (int k = 0; k < N_INPUTS; k++)
+         {
+            val += inputs[num][k] * weights[0][k][j];
+         }
+         
+         hiddens[j] = activate(val);
+         
          thetaj[j] = val;
          
       } //for (int j = 0; j < N_HIDDENS; j++)
-   }
+   } //public void trainCalcHiddens(int num)
+   
    
    /**
     * calculates the final output and theta(i) values using the dot products of the weights
     * in the hidden layer
     * 
+    * @param input identifies the binary input being used
+    * 
     */
-   public void calcOutput()
+   public void calcOutput(int input)
    {
       
       for (int i = 0; i < N_OUTPUTS; i++)
@@ -398,10 +468,55 @@ public class Network
          }
          
          outputs[i] = activate(val);
-         thetai[i] = val;
+      
+         if (train)
+         {
+            thetai[i] = val;
+            omega[i] = getError(i, input);
+            errorVals[i][input] = omega[i];
+            psiLowerI[i] = omega[i] * actDeriv(thetai[i]); 
+         }
+            
          
       } //for (int i = 0; i < N_OUTPUTS; i++)
-   }
+   } //public void calcOutput(int input)
+   
+   
+   
+   /**
+    * used for training
+    * 
+    * calculates the final output and theta(i) values using the dot products of the weights
+    * in the hidden layer
+    * 
+    * calculates many values used in training
+    * 
+    * @param input identifies the binary input being used
+    * 
+    */
+   public void trainCalcOutput(int input)
+   {
+      
+      for (int i = 0; i < N_OUTPUTS; i++)
+      {
+         double val = 0.0;
+         
+         for (int j = 0; j < N_HIDDENS; j++)
+         {
+            val += hiddens[j] * weights[1][j][i];
+         }
+         
+         outputs[i] = activate(val);
+         
+         thetai[i] = val;
+         omega[i] = getError(i, input);
+         errorVals[i][input] = omega[i];
+         psiLowerI[i] = omega[i] * actDeriv(thetai[i]);        
+         
+      } //for (int i = 0; i < N_OUTPUTS; i++)
+   } //public void trainCalcOutput(int input)
+   
+   
    
    /**
     * 
@@ -427,7 +542,17 @@ public class Network
    public void forwardPass(int num)
    {
       calcHiddens(num);
-      calcOutput();
+      calcOutput(num);
+   }
+   
+   /**
+    * combines the methods defined to perform a forward pass through the network
+    * @param the input being considered [(0, 1), (1, 1), etc]
+    */
+   public void trainForwardPass(int num)
+   {
+      trainCalcHiddens(num);
+      trainCalcOutput(num);
    }
    
    /**
@@ -454,7 +579,7 @@ public class Network
             displayRunResults(i, j);
          }
       } //for (int i = 0; i < N_OUTPUTS; i++)
-   }
+   } //public void run()
 
    /*
     * training specific code
@@ -498,7 +623,7 @@ public class Network
          } //for (int k = 0; k < N_INPUTS; k++)
       } // for (int n = 0; n < N_LAYERS; n++)
       
-   }
+   } //public void randomizeWeights()
    
    /**
     * loads in the input and target data used to train the neural network
@@ -512,19 +637,6 @@ public class Network
       setTargets();        
    }
    
-   /**
-    * derivative of the activation function
-    * 
-    * the current activation function is sigmoid: the derivative is f(1-f)
-    * 
-    * @param x the input value to pass through the derivative
-    * @return the value after being passed through the function 
-    */
-   public double actDeriv(double x)
-   {
-      double act = activate(x);
-      return act * (1.0 - act);
-   }
    
    /**
     * Implements gradient descent to calculate the optimal change for each
@@ -538,36 +650,7 @@ public class Network
     */
    public void calculateWeights(int input)
    {
-      forwardPass(input);           //have to do an initial forward pass to calculate error and access correct activations
-      
-      
-      /*
-       * calculating the change in  the weights connecting the 
-       * hidden layer to the output layer
-       */
-      
-      for (int i = 0; i < N_OUTPUTS; i++)
-      {
-         omega[i] = getError(i, input);
-         errorVals[i][input] = omega[i];
-         
-         psiLowerI[i] = omega[i] * actDeriv(thetai[i]); 
-         
-         
-         for (int j = 0; j < N_HIDDENS; j++)
-         {
-            partialsJ = -hiddens[j] * psiLowerI[i];
-            deltaWeightJ = -lambda * partialsJ;
-            deltaWeightsJ[j][i] = deltaWeightJ;
-            
-         } 
-      } //for (int i = 0; i < N_OUTPUTS; i++)
-      
-      
-      /*
-       * calculating the change in the weights connecting the 
-       * input layer to the hidden layer
-       */
+      trainForwardPass(input);           //have to do an initial forward pass to calculate error and access correct activations
       
       for (int j = 0; j < N_HIDDENS; j++)
       {
@@ -575,51 +658,28 @@ public class Network
          for (int i = 0; i < N_OUTPUTS; i++)
          {
             omegaJ += psiLowerI[i] * weights[1][j][i];            
+            /*
+             * calculating the change in  the weights connecting the 
+             * hidden layer to the output layer
+             */
+            
+            deltaWeightsJ[j][i] = lambda * hiddens[j] * psiLowerI[i];
+            weights[1][j][i] += deltaWeightsJ[j][i];
          }
-         
-         upperPsiJ = omegaJ * actDeriv(thetaj[j]);
+            upperPsiJ = omegaJ * actDeriv(thetaj[j]);
          
          for (int k = 0; k < N_INPUTS; k++)
-         {
-            partialsKJ = -inputs[input][k] * upperPsiJ;           
-            deltaWeightKJ = -lambda * partialsKJ;           
-            deltaWeightsK[k][j] = deltaWeightKJ;   
+         {                     
+            /*
+             * calculating the change in the weights connecting the 
+             * input layer to the hidden layer
+             */
+            deltaWeightsK[k][j] = lambda * inputs[input][k] * upperPsiJ;
+            weights[0][k][j] += deltaWeightsK[k][j];
          }
          
       } //for (int j = 0; j < N_HIDDENS; j++)
-   }
-   
-   
-   /**
-    * minimizes the weights using the calculations from calculateWeights
-    */
-   public void minimizeWeights()
-   {  
-      /*
-       * hiddens to output
-       */
-      
-      for (int i = 0; i < N_OUTPUTS; i++)
-      {
-         for (int j = 0; j < N_HIDDENS; j++)
-         {
-            weights[1][j][i] += deltaWeightsJ[j][i];
-         }
-      } //for (int i = 0; i < N_OUTPUTS; i++)
-      
-      
-      
-      /*
-       * input to hiddens
-       */
-      for (int k = 0; k < N_INPUTS; k++)
-      {
-         for (int j = 0; j < N_HIDDENS; j++)
-         {
-            weights[0][k][j] += deltaWeightsK[k][j];
-         }
-      } //for (int k = 0; k < N_INPUTS; k++)
-   }
+   } //public void calculateWeights(int input)
    
    /**
     * temporary method to "save" the weights
@@ -676,16 +736,17 @@ public class Network
        * 
        * The thresholds are mutable via a parameter passed through the constructor
        */
-      double totalerr = 0.0;
       double currentError = 0.0;
       boolean errcheck = true;
+      maxError = 0.0;
+      totalError = 0.0;
       
       for (int i = 0; i < N_OUTPUTS; i++)
       {
          for (int j = 0; j < inputSetSize; j++)
          {
             currentError = errorVals[i][j];
-            totalerr += Math.abs(currentError);
+            totalError += Math.abs(currentError);
             if (currentError > E_THRESH || currentError < -E_THRESH )
             {           
                errcheck = false;
@@ -699,10 +760,9 @@ public class Network
       } //for (int i = 0; i < N_OUTPUTS; i++)
       
       
-      if (totalerr < TOT_THRESH || totalerr < -TOT_THRESH)
+      if (totalError < TOT_THRESH || totalError < -TOT_THRESH)
       {
          exitConditions[2] = errcheck;
-         totalError = totalerr;
       }
       
       /*
@@ -722,14 +782,12 @@ public class Network
       }
       
       return exit;
-   }
+   } //public boolean checkExit()
    
    /**
     * exits the training loop by changing the repeat boolean to false
     * 
     * This signifies that the loop should no longer be repeating
-    * 
-    * the method exists to make the code more readable
     * 
     */
    public void exit()
@@ -748,10 +806,11 @@ public class Network
       randomizeWeights();  
       loadTrainingData();
       
+      startTime = System.currentTimeMillis();
+      
       while (repeat)
       {  
          calculateWeights(curr_iters % inputSetSize);
-         minimizeWeights();
          
          curr_iters++;
          
@@ -762,9 +821,12 @@ public class Network
             
       } //while (repeat)
       
+      endTime = System.currentTimeMillis();
+      elapsed = endTime - startTime;
+      
       finishTraining();
       
-   }
+   } //public void train()
    
    /*
     * getting results and printing
@@ -818,7 +880,7 @@ public class Network
       
       
       //saveWeights(); - will be uncommented when file writing is done
-   }
+   } //public void finishTraining()
    
    /**
     * Summarizes all the weights in a string so that the final print isn't as confusing
@@ -843,6 +905,7 @@ public class Network
                "\n\tOutput: " + outputs[out]);
    }
    
+   
    /*
     * prints important results from training in a table like readable format
     */
@@ -855,6 +918,7 @@ public class Network
 
    }
    
+   
    /*
     * prints the key details of the configuration of the network like
     * 
@@ -866,7 +930,12 @@ public class Network
    {
       System.out.println("Lambda: " + lambda + "\nNumber of inputs: " + N_INPUTS + "\nNumber of hiddens :" + N_HIDDENS + 
             "\nNumber of outputs: " + N_OUTPUTS + "\n\nWeight generation information \n\tMin value: " + 
-            start + "\tMax value: " + end + "\n\n"); 
+            start + "\tMax value: " + end + "\n\nExecution time in ms: " + elapsed + " ms\n\n"); 
+   }
+   
+   public void readfile()
+   {
+      
    }
    
    /**
@@ -888,12 +957,13 @@ public class Network
        * 
        */
       
-      int numIt = 200000;
+      int numIt = 50000;
+      boolean preloaded = false;
       double lam = 0.3;
       double minR = -1.0;
       double maxR = 1.5;
       int inNum = 2;
-      int hidNum = 2;
+      int hidNum = 5;
       int outNum = 3;
       double eThresh = 0.1;
       
@@ -901,7 +971,7 @@ public class Network
       /*
        * to run network, set first parameter to false
        */
-      Network network = new Network(true, numIt, lam, minR, maxR, inNum, 
+      Network network = new Network(true, preloaded, numIt, lam, minR, maxR, inNum, 
                hidNum, outNum, eThresh);
       
       if (network.isTraining())
@@ -909,6 +979,6 @@ public class Network
       else
          network.run();
       
-   }
+   } //public static void main(String[] args)
 
-}
+} //public class Network
