@@ -1,6 +1,9 @@
 import java.util.Arrays;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.Scanner;
+import java.io.BufferedWriter;
 import java.io.FileWriter;
-import java.io.PrintWriter;
 import java.io.IOException;
 
 /**
@@ -29,10 +32,10 @@ public class Network
    double[][] truthtable;  //truth table for xor
    String[] outNames;      //clarifies the output being evaluated (Or/and/xor etc)
    double[][] errorVals;   //store errors from each pass to use for error checks
-   final int N_INPUTS;     //constant with the number of sets of inputs, 4 for xor
-   final int N_HIDDENS;    //constant for the number of hidden nodes
-   final int N_LAYERS;     //number of layers
-   final int N_OUTPUTS;    //number of outputs
+   int n_inputs;     //constant with the number of sets of inputs, 4 for xor
+   int n_hiddens;    //constant for the number of hidden nodes
+   int n_layers;     //number of layers
+   int n_outputs;    //number of outputs
    double start;           //start of random range
    double end;             //end of random range
    int inputSetSize;       //size of training set
@@ -45,7 +48,7 @@ public class Network
     * exit condition variables
     */
    
-   final int N_ITERS;            //max number of iterations the network should pass through
+   int n_iters;            //max number of iterations the network should pass through
    final int N_ERRORCHECKS = 3;
    int curr_iters;               //current number of iterations
    double lambda;                //learning rate
@@ -55,6 +58,7 @@ public class Network
    boolean train;                //says whether the network is training or running
    boolean preload;              //whether to use preloaded weights or fixed weights
    
+   int dimCount;
    
    /*
     * training variables
@@ -64,8 +68,8 @@ public class Network
    double[] thetaj;        
    double[] psiLowerI;
    double[][] deltaWeightsJ;
-   final double E_THRESH;        //error threshold for an individual case
-   final double TOT_THRESH;      //total combined error for all cases
+   double e_thresh;        //error threshold for an individual case
+   double tot_thresh;      //total combined error for all cases
    
    double omegaJ;
    double upperPsiJ;
@@ -93,33 +97,9 @@ public class Network
     * @param numin number of inputs
     * @param numhid number of hidden nodes
     */
-   public Network(boolean training, boolean preloaded, int numIters, double initialLambda, double randstart, 
-                        double randend, int numin, int numhid, int numout, double tresh)
-   {
-      
-      train = training;
-      preload = preloaded;
-      
-      N_HIDDENS = numhid;
-      N_INPUTS = numin;
-      N_OUTPUTS = numout;
-      N_LAYERS = 2;                          //excluding output layer since no connection leaves the output layer
-      
-      
-      
-      E_THRESH = tresh;
-      TOT_THRESH = N_OUTPUTS * 2 * E_THRESH; //2 is a constant that I picked
-      
-      
-      N_ITERS = numIters;
-      lambda = initialLambda;
-      
-      start = randstart;
-      end = randend;
-      
-      configureNetwork();                    //initializes fundamental arrays
-         
-      
+   public Network()
+   {     
+      readfile();
    } //public Network(....)
    
    /*
@@ -139,115 +119,30 @@ public class Network
    {  
       if (train)
       {
-         thetaj = new double[N_HIDDENS];
-         thetai = new double[N_OUTPUTS];
-         deltaWeightsJ = new double[N_HIDDENS][N_OUTPUTS];
-         deltaWeightsK = new double[N_INPUTS][N_HIDDENS];
-         psiLowerI = new double[N_OUTPUTS];
-         omega = new double[N_OUTPUTS];
-         //omegaJ = new double[N_HIDDENS];
+         thetaj = new double[n_hiddens];
+         thetai = new double[n_outputs];
+         deltaWeightsJ = new double[n_hiddens][n_outputs];
+         deltaWeightsK = new double[n_inputs][n_hiddens];
+         psiLowerI = new double[n_outputs];
+         omega = new double[n_outputs];
+         //omegaJ = new double[n_hiddens];
       }
       
-      hiddens = new double[N_HIDDENS];
-      outputs = new double[N_OUTPUTS];
+      n_layers = 2;                          //excluding output layer since no connection leaves the output layer
+      hiddens = new double[n_hiddens];
+      outputs = new double[n_outputs];
      
       
-      int dimCount = Math.max(N_INPUTS, N_HIDDENS); 
-      dimCount = Math.max(dimCount, N_OUTPUTS);           //to ensure all connections are represented
+      dimCount = Math.max(n_inputs, n_hiddens); 
+      dimCount = Math.max(dimCount, n_outputs);           //to ensure all connections are represented
       
-      weights = new double[N_LAYERS][dimCount][dimCount]; //weights are between layers A-B and B-C
+      weights = new double[n_layers][dimCount][dimCount]; //weights are between layers A-B and B-C
       
-      if (preload)
-         setWeights();
-      else
+      if (!preload)
          randomizeWeights();
       
       resetNetwork();
    } //public void configureNetwork()
-   
-   
-   /**
-    * Sets the individual values of each weight
-    * this is where the weights can be hard coded to certain values
-    * 
-    * This hard coding only works for a 2-5-3 architecture
-    * 
-    * 
-    */
-   public void setWeights()
-   {
-      /*
-       * the values of each weight can/should be changed
-       */
-      double w000 = 0.2;
-      double w001 = 0.3;
-      double w002 = 0.4;
-      double w003 = 0.4;
-      double w004 = 0.4;
-      
-      double w010 = 0.5;
-      double w011 = 0.7;
-      double w012 = 0.4;
-      double w013 = 0.4;
-      double w014 = 0.4;
-      
-      double w100 = 0.4;
-      double w101 = 0.2;
-      double w102 = 0.5; 
-      
-      double w110 = 0.4;
-      double w111 = 0.2;
-      double w112 = 0.5;    
-      
-      double w120 = 0.4;
-      double w121 = 0.2;
-      double w122 = 0.5;    
-      
-      double w130 = 0.4;
-      double w131 = 0.2;
-      double w132 = 0.5;    
-      
-      double w140 = 0.4;
-      double w141 = 0.2;
-      double w142 = 0.5;    
-      
-      /*
-       * hard coding the weights
-       */
-      weights[0][0][0] = w000; 
-      weights[0][0][1] = w001; 
-      weights[0][0][2] = w002; 
-      weights[0][0][3] = w003; 
-      weights[0][0][4] = w004; 
-      
-      weights[0][1][0] = w010;
-      weights[0][1][1] = w011;
-      weights[0][1][2] = w012;
-      weights[0][1][3] = w013;
-      weights[0][1][4] = w014;
-      
-
-      weights[1][0][0] = w100;
-      weights[1][0][1] = w101;
-      weights[1][0][2] = w102;
-      
-      
-      weights[1][1][0] = w110;
-      weights[1][1][1] = w111;
-      weights[1][1][2] = w112;
-      
-      weights[1][2][0] = w120;
-      weights[1][2][1] = w121;
-      weights[1][2][2] = w122;
-      
-      weights[1][3][0] = w130;
-      weights[1][3][1] = w131;
-      weights[1][3][2] = w132;
-      
-      weights[1][4][0] = w140;
-      weights[1][4][1] = w141;
-      weights[1][4][2] = w142;
-   } //public void setWeights()
    
    /**
     * initializes the arrays of inputs
@@ -264,30 +159,7 @@ public class Network
     * This is where the inputs are hard coded in
     * 
     */
-   public void setInputs()
-   {
-      
-      inputSetSize = 4; //input size is 4 because that is the number of combinations
-      inputs = new double[inputSetSize][N_INPUTS];
-                     
-      /**
-       * for error calculation - 4 forward passes so 4 actual true outputs
-       * are needed to compare to the outputs of the pass
-       */
-                  
-      inputs[0][0] = 0.0;
-      inputs[0][1] = 0.0;
-      
-      inputs[1][0] = 0.0;
-      inputs[1][1] = 1.0;
-      
-      inputs[2][0] = 1.0;
-      inputs[2][1] = 0.0;
-      
-      inputs[3][0] = 1.0;
-      inputs[3][1] = 1.0;        
-      
-   } //public void setInputs()
+
    
    /**
     * Initializes the array of ground truths following the same convention
@@ -303,42 +175,11 @@ public class Network
     */
    public void setTargets()
    {
-      truthtable = new double[N_OUTPUTS][inputSetSize];
-      errorVals = new double[N_OUTPUTS][inputSetSize];
-      
-      
-      /*
-       * outNames is used for prints and clarification
-       */
-      outNames = new String[N_OUTPUTS];
+      outNames = new String[n_outputs];
       outNames[0] = "OR";
       outNames[1] = "AND";
       outNames[2] = "XOR";
-      
-      /*
-       * OR based on the inputs
-       */
-      truthtable[0][0] = 0;
-      truthtable[0][1] = 1;
-      truthtable[0][2] = 1;
-      truthtable[0][3] = 1;
-      
-      /*
-       * AND based on the inputs
-       */
-      truthtable[1][0] = 0;
-      truthtable[1][1] = 0;
-      truthtable[1][2] = 0;
-      truthtable[1][3] = 1;
-      
-      
-      /*
-       * XOR based on the inputs
-       */
-      truthtable[2][0] = 0;
-      truthtable[2][1] = 1;
-      truthtable[2][2] = 1;
-      truthtable[2][3] = 0;
+     
    } //public void setTargets()
       
    /**
@@ -401,18 +242,18 @@ public class Network
    public void calcHiddens(int num)
    {
       double val = 0.0;
-      for (int j = 0; j < N_HIDDENS; j++)
+      for (int j = 0; j < n_hiddens; j++)
       {
          val = 0.0;    
          
-         for (int k = 0; k < N_INPUTS; k++)
+         for (int k = 0; k < n_inputs; k++)
          {
             val += inputs[num][k] * weights[0][k][j];
          }
          
          hiddens[j] = activate(val);
          
-      } //for (int j = 0; j < N_HIDDENS; j++)
+      } //for (int j = 0; j < n_hiddens; j++)
    } //public void calcHiddens(int num)
    
    
@@ -431,20 +272,21 @@ public class Network
    public void trainCalcHiddens(int num)
    {
       double val = 0.0;
-      for (int j = 0; j < N_HIDDENS; j++)
+      for (int j = 0; j < n_hiddens; j++)
       {
          val = 0.0;    
          
-         for (int k = 0; k < N_INPUTS; k++)
+         for (int k = 0; k < n_inputs; k++)
          {
             val += inputs[num][k] * weights[0][k][j];
+            
          }
          
          hiddens[j] = activate(val);
          
          thetaj[j] = val;
          
-      } //for (int j = 0; j < N_HIDDENS; j++)
+      } //for (int j = 0; j < n_hiddens; j++)
    } //public void trainCalcHiddens(int num)
    
    
@@ -458,11 +300,11 @@ public class Network
    public void calcOutput(int input)
    {
       
-      for (int i = 0; i < N_OUTPUTS; i++)
+      for (int i = 0; i < n_outputs; i++)
       {
          double val = 0.0;
          
-         for (int j = 0; j < N_HIDDENS; j++)
+         for (int j = 0; j < n_hiddens; j++)
          {
             val += hiddens[j] * weights[1][j][i];
          }
@@ -473,12 +315,12 @@ public class Network
          {
             thetai[i] = val;
             omega[i] = getError(i, input);
-            errorVals[i][input] = omega[i];
+            errorVals[input][i] = omega[i];
             psiLowerI[i] = omega[i] * actDeriv(thetai[i]); 
          }
             
          
-      } //for (int i = 0; i < N_OUTPUTS; i++)
+      } //for (int i = 0; i < n_outputs; i++)
    } //public void calcOutput(int input)
    
    
@@ -497,11 +339,11 @@ public class Network
    public void trainCalcOutput(int input)
    {
       
-      for (int i = 0; i < N_OUTPUTS; i++)
+      for (int i = 0; i < n_outputs; i++)
       {
          double val = 0.0;
          
-         for (int j = 0; j < N_HIDDENS; j++)
+         for (int j = 0; j < n_hiddens; j++)
          {
             val += hiddens[j] * weights[1][j][i];
          }
@@ -510,10 +352,10 @@ public class Network
          
          thetai[i] = val;
          omega[i] = getError(i, input);
-         errorVals[i][input] = omega[i];
+         errorVals[input][i] = omega[i];
          psiLowerI[i] = omega[i] * actDeriv(thetai[i]);        
          
-      } //for (int i = 0; i < N_OUTPUTS; i++)
+      } //for (int i = 0; i < n_outputs; i++)
    } //public void trainCalcOutput(int input)
    
    
@@ -531,7 +373,7 @@ public class Network
     */
    public double getError(int out, int num)
    {
-      double error = truthtable[out][num] - outputs[out];
+      double error = truthtable[num][out] - outputs[out];
       return error;
    }
    
@@ -566,19 +408,17 @@ public class Network
        * give values to the weights and initializes the inputs
        * being passed in through the network
        */
-      setWeights();
-      setInputs();
+      
+      
       setTargets(); //temporary - helps split between the 3 output cases
       
-      for (int i = 0; i < N_OUTPUTS; i++)
+      for (int i = 0; i < inputSetSize; i++)
       {
-         System.out.println("\n\n" + outNames[i]+ "\n");
-         for (int j = 0; j < inputSetSize; j++)
-         {
-            forwardPass(j);
-            displayRunResults(i, j);
-         }
-      } //for (int i = 0; i < N_OUTPUTS; i++)
+         System.out.println("\n\n");
+         forwardPass(i);
+         displayRunResults(i);
+      }
+       //for (int i = 0; i < n_outputs; i++)
    } //public void run()
 
    /*
@@ -612,16 +452,16 @@ public class Network
     */
    public void randomizeWeights()
    {
-      for (int n = 0; n < N_LAYERS; n++)
+      for (int n = 0; n < n_layers; n++)
       {
-         for (int k = 0; k < N_INPUTS; k++)
+         for (int k = 0; k < dimCount; k++)
          {
-            for (int j = 0; j < N_HIDDENS; j++)
+            for (int j = 0; j < dimCount; j++)
             {
                weights[n][k][j] = randomgen(start, end); 
             }
-         } //for (int k = 0; k < N_INPUTS; k++)
-      } // for (int n = 0; n < N_LAYERS; n++)
+         } //for (int k = 0; k < n_inputs; k++)
+      } // for (int n = 0; n < n_layers; n++)
       
    } //public void randomizeWeights()
    
@@ -633,7 +473,6 @@ public class Network
     */
    public void loadTrainingData()
    {
-      setInputs();
       setTargets();        
    }
    
@@ -652,33 +491,30 @@ public class Network
    {
       trainForwardPass(input);           //have to do an initial forward pass to calculate error and access correct activations
       
-      for (int j = 0; j < N_HIDDENS; j++)
+      for (int j = 0; j < n_hiddens; j++)
       {
          omegaJ = 0.0;    
-         for (int i = 0; i < N_OUTPUTS; i++)
+         for (int i = 0; i < n_outputs; i++)
          {
             omegaJ += psiLowerI[i] * weights[1][j][i];            
             /*
              * calculating the change in  the weights connecting the 
              * hidden layer to the output layer
              */
-            
-            deltaWeightsJ[j][i] = lambda * hiddens[j] * psiLowerI[i];
-            weights[1][j][i] += deltaWeightsJ[j][i];
+            weights[1][j][i] += lambda * hiddens[j] * psiLowerI[i];
          }
             upperPsiJ = omegaJ * actDeriv(thetaj[j]);
          
-         for (int k = 0; k < N_INPUTS; k++)
+         for (int k = 0; k < n_inputs; k++)
          {                     
             /*
              * calculating the change in the weights connecting the 
              * input layer to the hidden layer
              */
-            deltaWeightsK[k][j] = lambda * inputs[input][k] * upperPsiJ;
-            weights[0][k][j] += deltaWeightsK[k][j];
+            weights[0][k][j] += lambda * inputs[input][k] * upperPsiJ;
          }
          
-      } //for (int j = 0; j < N_HIDDENS; j++)
+      } //for (int j = 0; j < n_hiddens; j++)
    } //public void calculateWeights(int input)
    
    /**
@@ -718,7 +554,7 @@ public class Network
       /*
        * check 2 - if the number of iterations hits the max
        */
-      if (curr_iters >= N_ITERS)
+      if (curr_iters >= n_iters)
             exitConditions[1] = true;     
       
       /*
@@ -727,9 +563,9 @@ public class Network
        * The error check I use has 2 steps
        * 
        * First - every error value must be less than the absolute value of an error threshold
-       * for all 4 inputs - for example, if E_THRESH is 0.05, the error must be <0.05 or <-0.05
+       * for all 4 inputs - for example, if e_thresh is 0.05, the error must be <0.05 or <-0.05
        * 
-       * Second - the sum of the absolute values of all errors should be less than 2 times the threshold (TOT_THRESH)
+       * Second - the sum of the absolute values of all errors should be less than 2 times the threshold (tot_thresh)
        * 
        * Both are necessary - only checking total error could allow outliers to pass through
        * and only checking individual error requires a higher threshold to precision
@@ -741,13 +577,13 @@ public class Network
       maxError = 0.0;
       totalError = 0.0;
       
-      for (int i = 0; i < N_OUTPUTS; i++)
+      for (int i = 0; i < inputSetSize; i++)
       {
-         for (int j = 0; j < inputSetSize; j++)
+         for (int j = 0; j < n_outputs; j++)
          {
             currentError = errorVals[i][j];
             totalError += Math.abs(currentError);
-            if (currentError > E_THRESH || currentError < -E_THRESH )
+            if (currentError > e_thresh || currentError < -e_thresh )
             {           
                errcheck = false;
             }   
@@ -757,10 +593,10 @@ public class Network
             }
            
          } //for (int j = 0; j < inputSetSize; j++)
-      } //for (int i = 0; i < N_OUTPUTS; i++)
+      } //for (int i = 0; i < n_outputs; i++)
       
       
-      if (totalError < TOT_THRESH || totalError < -TOT_THRESH)
+      if (totalError < tot_thresh || totalError < -tot_thresh)
       {
          exitConditions[2] = errcheck;
       }
@@ -837,7 +673,7 @@ public class Network
    
    public void finishTraining()
    {  
-
+      
       displayNetworkConfig();
       
       System.out.println("Training done\nReason for finishing:\n");
@@ -847,12 +683,12 @@ public class Network
       
       
       if (exitConditions[1] == true)
-         System.out.println("Max number of iterations of " + N_ITERS + " approached");
+         System.out.println("Max number of iterations of " + n_iters + " approached");
       
       if (exitConditions[2] == true)
          System.out.println("Error Threshold met - the highest magnitude of error for an individual case was " +
                      maxError + " which is less than " + 
-                     E_THRESH + "\n\t\tCombined error was " + totalError + " which is less than " + TOT_THRESH +
+                     e_thresh + "\n\t\tCombined error was " + totalError + " which is less than " + tot_thresh +
                      "\n\nBoth of these conditions had to be met for termination");
       
       
@@ -867,16 +703,13 @@ public class Network
        * last forward pass for results
        */
       
-      for (int i = 0; i < N_OUTPUTS; i++)
+      for (int i = 0; i < inputSetSize; i++)
       {
-         System.out.println("\n\n" + outNames[i] + "\n");
-         for (int j = 0; j < 4; j++)
-         {
-            forwardPass(j);
-            displayTrainResults(i, j);
-         }
-         
-      } //for (int i = 0; i < N_OUTPUTS; i++)
+            trainForwardPass(i);
+            displayTrainResults(i);
+      } //for (int i = 0; i < n_outputs; i++)
+      
+      writeToFile();
       
       
       //saveWeights(); - will be uncommented when file writing is done
@@ -897,24 +730,34 @@ public class Network
     * prints the results for each input pass
     * @param n in the index of the input being passed in 
     */
-   public void displayRunResults(int out, int n)
+   public void displayRunResults(int n)
    {
       
       System.out.println("Run Complete - Inputs: " + (int)inputs[n][0] + " " +
-               (int)inputs[n][1] +  
-               "\n\tOutput: " + outputs[out]);
+               (int)inputs[n][1]);
+      
+      for (int i = 0; i < n_outputs; i++)
+      {
+         System.out.println("Output " + outNames[i] + ": " + outputs[i]);
+      }
+               
    }
    
    
    /*
     * prints important results from training in a table like readable format
     */
-   public void displayTrainResults(int out, int n)
+   public void displayTrainResults(int n)
    {
-         System.out.println("Run Complete - Inputs: " + (int)inputs[n][0] + " " +
-               (int)inputs[n][1] +  
-               "\t\tExpected Output :" + truthtable[out][n] +
-               "\t\tOutput: " + outputs[out] + "\t\tError: " + getError(out, n));
+         System.out.println("\nRun Complete - Inputs: " + (int)inputs[n][0] + " " +
+               (int)inputs[n][1]);
+         
+         for (int i = 0; i < n_outputs; i++)
+         {
+            System.out.println("\t\tExpected Output :" + truthtable[n][i] +
+               "\t\tOutput: " + outputs[i] + "\t\tError: " + errorVals[n][i]);
+         }
+               
 
    }
    
@@ -928,15 +771,209 @@ public class Network
     */
    public void displayNetworkConfig()
    {
-      System.out.println("Lambda: " + lambda + "\nNumber of inputs: " + N_INPUTS + "\nNumber of hiddens :" + N_HIDDENS + 
-            "\nNumber of outputs: " + N_OUTPUTS + "\n\nWeight generation information \n\tMin value: " + 
+      System.out.println("Lambda: " + lambda + "\nNumber of inputs: " + n_inputs + "\nNumber of hiddens :" + n_hiddens + 
+            "\nNumber of outputs: " + n_outputs + "\n\nWeight generation information \n\tMin value: " + 
             start + "\tMax value: " + end + "\n\nExecution time in ms: " + elapsed + " ms\n\n"); 
    }
    
+   /*
+    * writes all the information about the network and the new output weights
+    * into a textfile in the same format as the input file
+    */
+   public void writeToFile()
+   {
+      try 
+      {
+         FileWriter fw = new FileWriter("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\outputfile.txt");
+         
+         //writing important info
+         fw.write(n_inputs + "\n");
+         fw.write(n_hiddens + "\n");
+         fw.write(n_outputs + "\n");
+         fw.write(lambda + "\n");
+         fw.write(n_iters + "\n");
+         fw.write(((train) ? 1 : 0) + "\n");
+         fw.write(((preload) ? 1 : 0) + "\n");
+         fw.write(start + "\n");
+         fw.write(end + "\n");
+         fw.write(e_thresh + "\n");
+         
+         fw.write("------------\n");
+         
+         //writing inputs
+         
+         fw.write(inputSetSize + "\n");
+         
+         for (int i = 0; i < inputSetSize; i++)
+         {
+            for (int j = 0; j < n_inputs; j++)
+            {
+               fw.write(inputs[i][j] + "\n");
+               
+            }
+         }
+         
+         //writing truthtable
+         
+         fw.write("------------\n");
+         
+         for (int i = 0; i < inputSetSize; i++)
+         {
+            for (int j = 0; j < n_outputs; j++)
+            {
+               fw.write(truthtable[i][j] + "\n");
+            }
+         }
+         
+         //writing output weights
+         
+         fw.write("------------\n");
+         
+         for (int i = 0; i < n_inputs; i++)
+         {
+            for (int j = 0; j < n_hiddens; j++)
+            {
+               fw.write(weights[0][i][j] + "\n");
+            }
+         }
+         
+         for (int i = 0; i < n_hiddens; i++)
+         {
+            for (int j = 0; j < n_outputs; j++)
+            {
+               fw.write(weights[1][i][j] + "\n");     
+            }
+         }
+         
+         fw.close();
+         
+      } //try 
+      
+      catch (IOException e) 
+      {
+         // TODO Auto-generated catch block
+         e.printStackTrace();
+      }
+      
+   } //public void writeToFile()
+   
+   /*
+    * reads in everything that is needed from a specified text file
+    */
    public void readfile()
    {
       
-   }
+      //loading the file
+      File file = new File("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\backprop_c_f.txt");
+      
+      
+      //checks that file is found
+      Scanner sc = null;
+      try 
+      {
+         sc = new Scanner(file);
+      } 
+      catch (FileNotFoundException e) 
+      {
+         // TODO Auto-generated catch block
+         e.printStackTrace();
+      }
+      
+      //reading parameters
+      
+      int in = sc.nextInt();
+      int hiddens = sc.nextInt();
+      int outputs = sc.nextInt();
+      double lam = sc.nextDouble();
+      int numit = sc.nextInt();
+      
+      int training = sc.nextInt();
+      int preloadWeights = sc.nextInt();
+      double minr = sc.nextDouble();
+      double maxr = sc.nextDouble();
+      double thresh = sc.nextDouble();
+      
+      sc.nextLine();
+      
+      n_inputs = in;
+      n_hiddens = hiddens;
+      n_outputs = outputs;
+      
+      n_iters = numit;
+      lambda = lam;
+      
+      start = minr;
+      end = maxr;
+      
+      train = (training == 1);
+      preload = (preloadWeights == 1);
+      
+      e_thresh = thresh;
+      tot_thresh = n_outputs * 2 * e_thresh; //2 is a constant that I picked
+      
+      configureNetwork();
+      
+      sc.nextLine();
+      
+      //inputs
+      
+      inputSetSize = sc.nextInt();
+      
+      inputs = new double[inputSetSize][n_inputs];
+      
+      for (int i = 0; i < inputSetSize; i++)
+      {
+         for (int j = 0; j < n_inputs; j++)
+         {
+            inputs[i][j] = sc.nextDouble();
+            
+         }
+      }
+      
+      sc.nextLine();
+      sc.nextLine();
+      
+      //truthtable
+      
+      truthtable = new double[inputSetSize][n_outputs];
+      errorVals = new double[inputSetSize][n_outputs];
+      
+      for (int i = 0; i < inputSetSize; i++)
+      {
+         for (int j = 0; j < n_outputs; j++)
+         {
+            truthtable[i][j] = sc.nextDouble();
+         }
+      }
+      
+      sc.nextLine();
+      sc.nextLine();
+      
+      //weights
+      
+      
+      if (preload)
+      {
+         for (int i = 0; i < n_inputs; i++)
+         {
+            for (int j = 0; j < n_hiddens; j++)
+            {
+               weights[0][i][j] = sc.nextDouble();
+            }
+         }
+         
+         for (int i = 0; i < n_hiddens; i++)
+         {
+            for (int j = 0; j < n_outputs; j++)
+            {
+               weights[1][i][j] = sc.nextDouble();      
+            }
+         }
+      } //if (preload)
+ 
+      sc.close();
+      
+   } //public void readfile()
    
    /**
     * Creates a network object and completes the full forward pass and
@@ -945,6 +982,7 @@ public class Network
     * Network object takes in parameters to make the network as customizable as possible
     *       description of corresponding parameters below
     * @param args
+    * @throws Exception 
     */
    public static void main(String[] args)
    {
@@ -957,27 +995,20 @@ public class Network
        * 
        */
       
-      int numIt = 50000;
-      boolean preloaded = false;
-      double lam = 0.3;
-      double minR = -1.0;
-      double maxR = 1.5;
-      int inNum = 2;
-      int hidNum = 5;
-      int outNum = 3;
-      double eThresh = 0.1;
-      
-      
       /*
        * to run network, set first parameter to false
        */
-      Network network = new Network(true, preloaded, numIt, lam, minR, maxR, inNum, 
-               hidNum, outNum, eThresh);
+      Network network = new Network();
       
       if (network.isTraining())
+      {
          network.train();
+         
+      }
       else
+      {
          network.run();
+      }
       
    } //public static void main(String[] args)
 
