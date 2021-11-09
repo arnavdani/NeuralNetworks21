@@ -2,7 +2,6 @@ import java.util.Arrays;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.Scanner;
-import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 
@@ -82,6 +81,9 @@ public class Network
    long endTime;
    long elapsed;
    
+   File inputFile;
+   FileWriter outputFile;
+   
    
       
    /**
@@ -89,18 +91,15 @@ public class Network
     * calls the method that sets up all the fundamental arrays 
     * and initializes the output variable
     * 
-    * @param training determines whether the network is training or running
-    * @param numIters the max number of iterations for the network
-    * @param initialLambda the initial learning rate
-    * @param randstart double for min value for random gen
-    * @param randend double max value for random gens
-    * @param numin number of inputs
-    * @param numhid number of hidden nodes
+    * @param inFile input file to read config from
+    * @param outFile the output file to write results to
     */
-   public Network()
+   public Network(File inFile, FileWriter outFile)
    {     
+      inputFile = inFile;
+      outputFile = outFile;
       readfile();
-   } //public Network(....)
+   } 
    
    /*
     * Determines whether the program is training or testing
@@ -125,7 +124,6 @@ public class Network
          deltaWeightsK = new double[n_inputs][n_hiddens];
          psiLowerI = new double[n_outputs];
          omega = new double[n_outputs];
-         //omegaJ = new double[n_hiddens];
       }
       
       n_layers = 2;                          //excluding output layer since no connection leaves the output layer
@@ -489,7 +487,7 @@ public class Network
     */
    public void calculateWeights(int input)
    {
-      trainForwardPass(input);           //have to do an initial forward pass to calculate error and access correct activations
+      trainForwardPass(input);           //have to do an initial forward pass to do calculations
       
       for (int j = 0; j < n_hiddens; j++)
       {
@@ -497,24 +495,17 @@ public class Network
          for (int i = 0; i < n_outputs; i++)
          {
             omegaJ += psiLowerI[i] * weights[1][j][i];            
-            /*
-             * calculating the change in  the weights connecting the 
-             * hidden layer to the output layer
-             */
             weights[1][j][i] += lambda * hiddens[j] * psiLowerI[i];
          }
             upperPsiJ = omegaJ * actDeriv(thetaj[j]);
          
          for (int k = 0; k < n_inputs; k++)
          {                     
-            /*
-             * calculating the change in the weights connecting the 
-             * input layer to the hidden layer
-             */
             weights[0][k][j] += lambda * inputs[input][k] * upperPsiJ;
          }
          
       } //for (int j = 0; j < n_hiddens; j++)
+      
    } //public void calculateWeights(int input)
    
    /**
@@ -676,7 +667,7 @@ public class Network
       
       displayNetworkConfig();
       
-      System.out.println("Training done\nReason for finishing:\n");
+      System.out.println("Training done\nReason for finishing:");
       
       if (exitConditions[0] == true)
          System.out.println("Lambda became 0");
@@ -707,12 +698,10 @@ public class Network
       {
             trainForwardPass(i);
             displayTrainResults(i);
-      } //for (int i = 0; i < n_outputs; i++)
+      } 
       
       writeToFile();
       
-      
-      //saveWeights(); - will be uncommented when file writing is done
    } //public void finishTraining()
    
    /**
@@ -741,7 +730,7 @@ public class Network
          System.out.println("Output " + outNames[i] + ": " + outputs[i]);
       }
                
-   }
+   } //public void displayRunResults(int n)
    
    
    /*
@@ -756,10 +745,9 @@ public class Network
          {
             System.out.println("\t\tExpected Output :" + truthtable[n][i] +
                "\t\tOutput: " + outputs[i] + "\t\tError: " + errorVals[n][i]);
-         }
-               
+         }        
 
-   }
+   } //public void displayTrainResults(int n)
    
    
    /*
@@ -772,8 +760,8 @@ public class Network
    public void displayNetworkConfig()
    {
       System.out.println("Lambda: " + lambda + "\nNumber of inputs: " + n_inputs + "\nNumber of hiddens :" + n_hiddens + 
-            "\nNumber of outputs: " + n_outputs + "\n\nWeight generation information \n\tMin value: " + 
-            start + "\tMax value: " + end + "\n\nExecution time in ms: " + elapsed + " ms\n\n"); 
+            "\nNumber of outputs: " + n_outputs + "\nWeight generation information: Min value: " + 
+            start + "\tMax value: " + end + "\nExecution time in ms: " + elapsed + " ms\n"); 
    }
    
    /*
@@ -784,7 +772,8 @@ public class Network
    {
       try 
       {
-         FileWriter fw = new FileWriter("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\outputfile.txt");
+         //FileWriter fw = new FileWriter("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\outputfile.txt");
+         FileWriter fw = outputFile;
          
          //writing important info
          fw.write(n_inputs + "\n");
@@ -864,14 +853,14 @@ public class Network
    {
       
       //loading the file
-      File file = new File("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\backprop_c_f.txt");
+      //File file = new File("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\backprop_c_f.txt");
       
       
       //checks that file is found
       Scanner sc = null;
       try 
       {
-         sc = new Scanner(file);
+         sc = new Scanner(inputFile);
       } 
       catch (FileNotFoundException e) 
       {
@@ -981,24 +970,27 @@ public class Network
     * 
     * Network object takes in parameters to make the network as customizable as possible
     *       description of corresponding parameters below
-    * @param args
-    * @throws Exception 
+    * @param args the files to read and write from
     */
    public static void main(String[] args)
    {
-      /*
-       * parameters in order: 
-       * 
-       * training, num iters, lamba, min rand range, max rand range, # in input layer, 
-       *          # in hidden layer, # in output layer, error threshold
-       * 
-       * 
-       */
       
-      /*
-       * to run network, set first parameter to false
-       */
-      Network network = new Network();
+      //input file
+      File iFile = new File("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\" + args[0]);
+      
+      
+      //output file
+      FileWriter oFile = null;
+      try {
+         oFile = new FileWriter("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\" + args[1]);
+      } catch (IOException e) {
+         // TODO Auto-generated catch block
+         e.printStackTrace();
+      }
+      
+      
+      
+      Network network = new Network(iFile, oFile);
       
       if (network.isTraining())
       {
