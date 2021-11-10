@@ -1,0 +1,31 @@
+#Num inputs
+#Num hiddens
+#Num outputs
+#lambda
+#numIterations
+#boolean whether training or not - 1 == true, 0 == false
+#boolean for fixed/random weights - same as above
+#min random range
+#max random range
+#error threshold
+--------------------------(line break, inputs)
+NumInputSize
+#INPUT 0,1
+#INPUT 1,1
+#INPUT 1,n
+#INPUT 2,1
+#INPUT n,n
+--------------------------(linebreak, truth table)
+#OUTPUT 0,1
+#OUTPUT 1,1
+#OUTPUT 1,n
+#OUTPUT 2,1
+#OUTPUT n.n
+-------------------------(use to represent line break, fixed weights now)
+#insert fixed weights below
+#with one weight corresponding to
+#exactly one line
+#must match the architecture described above
+#otherwise error will be thrown
+#in increasing order, 000, 001, 002, 010, 011, 012 etc
+
