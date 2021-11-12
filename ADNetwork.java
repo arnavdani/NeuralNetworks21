@@ -11,7 +11,7 @@ import java.io.IOException;
  * 
  * Created: 10-11-2021
  * 
- * Simulates the behavior of an A-B-C neural network that has one hidden layer
+ * Simulates the behavior of an A-B-C-D neural network that has one hidden layer
  * The hidden layer, input layer, and output layer can have any number of activations
  * 
  * 
@@ -19,9 +19,6 @@ import java.io.IOException;
  * to make the process as efficient as possible.
  * 
  * In addition, file reading and writing is implemented.
- * 
- * 
- * Inputs and truth table are hardcoded in
  *
  */
 
@@ -29,13 +26,15 @@ public class Network
 {
    double[] outputs;       //output activation
    double[][] inputs;      //input activations for xor
-   double[] hiddens;       //nodes in the 1 hidden layer
+   double[] hiddens1;      //nodes in the 1st hidden layer
+   double[] hiddens2;      //nodes in the 2nd hidden layer   
    double[][][] weights;   //weights in the network
    double[][] truthtable;  //truth table for xor
    String[] outNames;      //clarifies the output being evaluated (Or/and/xor etc)
    double[][] errorVals;   //store errors from each pass to use for error checks
    int n_inputs;           //constant with the number of sets of inputs, 4 for xor
-   int n_hiddens;          //constant for the number of hidden nodes
+   int n_hiddens1;         //constant for the number of hidden nodes in the first hidden layer
+   int n_hiddens2;         //constant for nubmer of hidden nodes in the 2nd hidden layer         
    int n_layers;           //number of layers
    int n_outputs;          //number of outputs
    double start;           //start of random range
@@ -67,15 +66,17 @@ public class Network
     */
    double[] omega;
    double[] thetai;
-   double[] thetaj;        
+   double[] thetaj;
+   double[] thetak;  
    double[] psiLowerI;
    double[][] deltaWeightsJ;
    double e_thresh;        //error threshold for an individual case
    double tot_thresh;      //total combined error for all cases
    
    double omegaJ;
-   double upperPsiJ;
-   double[][] deltaWeightsK;
+   double omegaK;
+   double[] upperPsiJ;
+   double upperPsiK;
    
    /*
     * calculating runtime
@@ -125,20 +126,21 @@ public class Network
    {  
       if (train)
       {
-         thetaj = new double[n_hiddens];
+         thetaj = new double[n_hiddens1];
          thetai = new double[n_outputs];
-         deltaWeightsJ = new double[n_hiddens][n_outputs];
-         deltaWeightsK = new double[n_inputs][n_hiddens];
+         thetak = new double[n_hiddens2];
          psiLowerI = new double[n_outputs];
          omega = new double[n_outputs];
+         upperPsiJ = new double[n_hiddens2];
       } //if (train)
       
-      n_layers = 2;                          //excluding output layer since no connection leaves the output layer
-      hiddens = new double[n_hiddens];
+      n_layers = 3;                          //excluding output layer since no connection leaves the output layer
+      hiddens1 = new double[n_hiddens1];
+      hiddens2 = new double[n_hiddens2];
       outputs = new double[n_outputs];
      
       
-      dimCount = Math.max(n_inputs, n_hiddens); 
+      dimCount = Math.max(n_inputs, n_hiddens1); 
       dimCount = Math.max(dimCount, n_outputs);           //to ensure all connections are represented
       
       weights = new double[n_layers][dimCount][dimCount]; //weights are between layers A-B and B-C
@@ -198,7 +200,13 @@ public class Network
     */
    public double activate(double x)
    {
+      //sigmoid
       return  1.0 / (1.0 + Math.exp(-x));
+      
+      //hyperbolic tangent
+      //double e2x = Math.exp(2 * x);
+      //return (e2x - 1.0) / (e2x + 1.0);
+      
    }
    
    /**
@@ -211,8 +219,10 @@ public class Network
     */
    public double actDeriv(double x)
    {
+      //sigmoid
       double act = activate(x);
       return act * (1.0 - act);
+      //return 2.0 / (Math.exp(x) + Math.exp(-x));
    }
    
    /**
@@ -225,18 +235,31 @@ public class Network
    public void calcHiddens(int num)
    {
       double val = 0.0;
-      for (int j = 0; j < n_hiddens; j++)
+      
+      for (int k = 0; k < n_hiddens1; k++)
       {
          val = 0.0;    
          
-         for (int k = 0; k < n_inputs; k++)
+         for (int m = 0; m < n_inputs; m++)
          {
-            val += inputs[num][k] * weights[0][k][j];
+            val += inputs[num][m] * weights[0][m][k];
          }
          
-         hiddens[j] = activate(val);
+         hiddens1[k] = activate(val);
          
-      } //for (int j = 0; j < n_hiddens; j++)
+      } //for (int k = 0; k < n_hiddens1; k++)
+      
+      for (int j = 0; j < n_hiddens2; j++)
+      {
+         val = 0.0;
+               
+         for (int k = 0; k < n_hiddens1; k++)
+         {
+            val += hiddens1[k] * weights[1][k][j];
+         }
+         
+         hiddens2[j] = activate(val);
+      } //for (int j = 0; j < n_hiddens2; j++)
    } //public void calcHiddens(int num)
    
    
@@ -255,20 +278,35 @@ public class Network
    public void trainCalcHiddens(int num)
    {
       double val = 0.0;
-      for (int j = 0; j < n_hiddens; j++)
+      for (int k = 0; k < n_hiddens1; k++)
       {
          val = 0.0;    
          
-         for (int k = 0; k < n_inputs; k++)
+         for (int m = 0; m < n_inputs; m++)
          {
-            val += inputs[num][k] * weights[0][k][j];
-         } //for (int k = 0; k < n_inputs; k++)
+            val += inputs[num][m] * weights[0][m][k];
+         } //for (int m = 0; m < n_inputs; m++)
          
-         hiddens[j] = activate(val);
+         hiddens1[k] = activate(val);
+         
+         thetak[k] = val;
+         
+      } //for (int k = 0; k < n_hiddens1; k++)
+      
+      for (int j = 0; j < n_hiddens2; j++)
+      {
+         val = 0.0;
+               
+         for (int k = 0; k < n_hiddens1; k++)
+         {
+            val += hiddens1[k] * weights[1][k][j];
+         }
          
          thetaj[j] = val;
-         
-      } //for (int j = 0; j < n_hiddens; j++)
+         hiddens2[j] = activate(val);
+      } //for (int j = 0; j < n_hiddens2; j++)
+      
+      
    } //public void trainCalcHiddens(int num)
    
    
@@ -286,9 +324,9 @@ public class Network
       {
          double val = 0.0;
          
-         for (int j = 0; j < n_hiddens; j++)
+         for (int j = 0; j < n_hiddens2; j++)
          {
-            val += hiddens[j] * weights[1][j][i];
+            val += hiddens2[j] * weights[2][j][i];
          }
          
          outputs[i] = activate(val);
@@ -316,9 +354,9 @@ public class Network
       {
          double val = 0.0;
          
-         for (int j = 0; j < n_hiddens; j++)
+         for (int j = 0; j < n_hiddens2; j++)
          {
-            val += hiddens[j] * weights[1][j][i];
+            val += hiddens2[j] * weights[2][j][i];
          }
          
          outputs[i] = activate(val);
@@ -391,7 +429,7 @@ public class Network
          forwardPass(i);
          displayRunResults(i);
       }
-       //for (int i = 0; i < n_outputs; i++)
+       //for (int i = 0; i < inputSetSize; i++)
    } //public void run()
 
    /*
@@ -453,23 +491,36 @@ public class Network
    {
       trainForwardPass(input);           //have to do an initial forward pass to do calculations
       
-      for (int j = 0; j < n_hiddens; j++)
+      for (int j = 0; j < n_hiddens2; j++)
       {
          omegaJ = 0.0;    
          for (int i = 0; i < n_outputs; i++)
          {
-            omegaJ += psiLowerI[i] * weights[1][j][i];            
-            weights[1][j][i] += lambda * hiddens[j] * psiLowerI[i];
+            omegaJ += psiLowerI[i] * weights[2][j][i];            
+            weights[2][j][i] += lambda * hiddens2[j] * psiLowerI[i];
          } //for (int i = 0; i < n_outputs; i++)
          
-         upperPsiJ = omegaJ * actDeriv(thetaj[j]);
+         upperPsiJ[j] = omegaJ * actDeriv(thetaj[j]);
          
-         for (int k = 0; k < n_inputs; k++)
-         {                     
-            weights[0][k][j] += lambda * inputs[input][k] * upperPsiJ;
-         } //for (int k = 0; k < n_inputs; k++)
+      } //for (int j = 0; j < n_hiddens2; j++)
+      
+      for (int k = 0; k < n_hiddens1; k++)
+      {
+         omegaK = 0.0;
+         for (int j = 0; j < n_hiddens2; j++)
+         {
+            omegaK += upperPsiJ[j] * weights[1][k][j];
+            weights[1][k][j] += lambda * hiddens1[k] * upperPsiJ[j];      
+         } //for (int j = 0; j < n_hiddens2; j++)
          
-      } //for (int j = 0; j < n_hiddens; j++)
+         upperPsiK = omegaK * actDeriv(thetak[k]);
+         
+         for (int m = 0; m < n_inputs; m++)
+         {
+            weights[0][m][k] += lambda * inputs[input][m] * upperPsiK; 
+         }//for (int m = 0; m < n_inputs; m++)
+         
+      } //for (int k = 0; k < n_hiddens1; k++)
       
    } //public void calculateWeights(int input)   
       
@@ -697,7 +748,7 @@ public class Network
          {
             System.out.println("\t\tExpected Output :" + truthtable[n][i] +
                "\t\tOutput: " + outputs[i] + "\t\tError: " + errorVals[n][i]);
-         }        
+         } //for (int i = 0; i < n_outputs; i++)        
 
    } //public void displayTrainResults(int n)
    
@@ -711,8 +762,8 @@ public class Network
     */
    public void displayNetworkConfig()
    {
-      System.out.println("Lambda: " + lambda + "\nNumber of inputs: " + n_inputs + "\nNumber of hiddens :" + n_hiddens + 
-            "\nNumber of outputs: " + n_outputs + "\nWeight generation information: Min value: " + 
+      System.out.println("Lambda: " + lambda + "\nNumber of inputs: " + n_inputs + "\nNumber of hiddens1 :" + n_hiddens1 + 
+            "\nNumber of hiddens2: " + n_hiddens2 + "\nNumber of outputs: " + n_outputs + "\nWeight generation information: Min value: " + 
             start + "\tMax value: " + end + "\nPreloaded weights: " + preload + "\nExecution time in ms: " + elapsed + " ms\n"); 
    }
    
@@ -728,7 +779,8 @@ public class Network
          
          //writing important info
          fw.write(n_inputs + "\n");
-         fw.write(n_hiddens + "\n");
+         fw.write(n_hiddens1 + "\n");
+         fw.write(n_hiddens2 + "\n");
          fw.write(n_outputs + "\n");
          fw.write(lambda + "\n");
          fw.write(n_iters + "\n");
@@ -769,21 +821,29 @@ public class Network
          
          fw.write("------------\n");
          
-         for (int i = 0; i < n_inputs; i++)
+         for (int m = 0; m < n_inputs; m++)
          {
-            for (int j = 0; j < n_hiddens; j++)
+            for (int k = 0; k < n_hiddens1; k++)
             {
-               fw.write(weights[0][i][j] + "\n");
+               fw.write(weights[0][m][k] + "\n");
             }
-         } //for (int i = 0; i < n_inputs; i++)
+         } //for (int m = 0; m < n_inputs; m++)
          
-         for (int i = 0; i < n_hiddens; i++)
+         for (int k = 0; k < n_hiddens1; k++)
          {
-            for (int j = 0; j < n_outputs; j++)
+            for (int j = 0; j < n_hiddens2; j++)
             {
-               fw.write(weights[1][i][j] + "\n");     
+               fw.write(weights[1][k][j] + "\n");     
             }
-         } //for (int i = 0; i < n_hiddens; i++)
+         } //for (int k = 0; k < n_hiddens1; k++)
+         
+         for (int j = 0; j < n_hiddens2; j++)
+         {
+            for (int i = 0; i < n_outputs; i++)
+            {
+               fw.write(weights[2][j][i] + "\n");     
+            }
+         } //for (int j = 0; j < n_hiddens2; j++)
          
          fw.close();
          
@@ -817,7 +877,8 @@ public class Network
       //reading parameters
       
       int in = sc.nextInt();
-      int hiddens = sc.nextInt();
+      int hiddens1 = sc.nextInt();
+      int hiddens2 = sc.nextInt();
       int outputs = sc.nextInt();
       double lam = sc.nextDouble();
       int numit = sc.nextInt();
@@ -831,7 +892,8 @@ public class Network
       sc.nextLine();
       
       n_inputs = in;
-      n_hiddens = hiddens;
+      n_hiddens1 = hiddens1;
+      n_hiddens2 = hiddens2;
       n_outputs = outputs;
       
       n_iters = numit;
@@ -889,21 +951,29 @@ public class Network
       
       if (preload)
       {
-         for (int i = 0; i < n_inputs; i++)
+         for (int m = 0; m < n_inputs; m++)
          {
-            for (int j = 0; j < n_hiddens; j++)
+            for (int k = 0; k < n_hiddens1; k++)
             {
-               weights[0][i][j] = sc.nextDouble();
+               weights[0][m][k] = sc.nextDouble();
             }
-         } //for (int i = 0; i < n_inputs; i++)
+         } //for (int m = 0; m < n_inputs; m++)
          
-         for (int i = 0; i < n_hiddens; i++)
+         for (int k = 0; k < n_inputs; k++)
          {
-            for (int j = 0; j < n_outputs; j++)
+            for (int j = 0; j < n_hiddens1; j++)
             {
-               weights[1][i][j] = sc.nextDouble();      
+               weights[0][k][j] = sc.nextDouble();
             }
-         } //for (int i = 0; i < n_hiddens; i++)
+         } //for (int k = 0; k < n_inputs; k++)
+         
+         for (int j = 0; j < n_hiddens2; j++)
+         {
+            for (int i = 0; i < n_outputs; i++)
+            {
+               weights[1][j][i] = sc.nextDouble();      
+            }
+         } //for (int j = 0; j < n_hiddens2; j++)
       } //if (preload)
  
       sc.close();
