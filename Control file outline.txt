@@ -1,10 +1,12 @@
+#file adress to save outputs (eg x.txt)
 #Num inputs
-#Num hiddens
+#Num hiddens1
+#Num hiddens2
 #Num outputs
 #lambda
 #numIterations
 #boolean whether training or not - 1 == true, 0 == false
-#boolean for fixed/random weights - same as above
+#boolean for fixed weights - same as above
 #min random range
 #max random range
 #error threshold
