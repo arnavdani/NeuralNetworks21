@@ -1,4 +1,3 @@
-import java.util.Arrays;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.Scanner;
@@ -102,10 +101,9 @@ public class Network
     * @param inFile input file to read config from
     * @param outFile the output file to write results to
     */
-   public Network(File inFile, FileWriter outFile)
+   public Network(File inFile)
    {     
       inputFile = inFile;
-      outputFile = outFile;
       readfile();
    } 
    
@@ -141,6 +139,7 @@ public class Network
      
       
       dimCount = Math.max(n_inputs, n_hiddens1); 
+      dimCount = Math.max(dimCount, n_hiddens2); 
       dimCount = Math.max(dimCount, n_outputs);           //to ensure all connections are represented
       
       weights = new double[n_layers][dimCount][dimCount]; //weights are between layers A-B and B-C
@@ -201,11 +200,11 @@ public class Network
    public double activate(double x)
    {
       //sigmoid
-      return  1.0 / (1.0 + Math.exp(-x));
+      //return  1.0 / (1.0 + Math.exp(-x));
       
       //hyperbolic tangent
-      //double e2x = Math.exp(2 * x);
-      //return (e2x - 1.0) / (e2x + 1.0);
+      double e2x = Math.exp(2 * x);
+      return (e2x - 1.0) / (e2x + 1.0);
       
    }
    
@@ -220,9 +219,14 @@ public class Network
    public double actDeriv(double x)
    {
       //sigmoid
+      //double act = activate(x);
+      //return act * (1.0 - act);
+      
+      //hyperbolic tan
       double act = activate(x);
-      return act * (1.0 - act);
-      //return 2.0 / (Math.exp(x) + Math.exp(-x));
+      return 1 - act * act;
+      
+      
    }
    
    /**
@@ -244,7 +248,6 @@ public class Network
          {
             val += inputs[num][m] * weights[0][m][k];
          }
-         
          hiddens1[k] = activate(val);
          
       } //for (int k = 0; k < n_hiddens1; k++)
@@ -260,6 +263,7 @@ public class Network
          
          hiddens2[j] = activate(val);
       } //for (int j = 0; j < n_hiddens2; j++)
+      
    } //public void calcHiddens(int num)
    
    
@@ -285,6 +289,7 @@ public class Network
          for (int m = 0; m < n_inputs; m++)
          {
             val += inputs[num][m] * weights[0][m][k];
+            
          } //for (int m = 0; m < n_inputs; m++)
          
          hiddens1[k] = activate(val);
@@ -578,23 +583,18 @@ public class Network
          {
             currentError = errorVals[i][j];
             totalError += Math.abs(currentError);
+            maxError = Math.max(maxError, Math.abs(currentError));
             if (currentError > e_thresh || currentError < -e_thresh )
             {           
                errcheck = false;
+               
             }   
-            else
-            {
-               maxError = Math.max(maxError, Math.abs(currentError));
-            }
            
          } //for (int j = 0; j < inputSetSize; j++)
       } //for (int i = 0; i < n_outputs; i++)
       
       
-      if (totalError < tot_thresh || totalError < -tot_thresh)
-      {
-         exitConditions[2] = errcheck;
-      }
+      exitConditions[2] = (totalError < tot_thresh) && errcheck;
       
       /*
        * as more error checks are added, they will be processed here
@@ -640,13 +640,17 @@ public class Network
       
       while (repeat)
       {  
-         calculateWeights(curr_iters % inputSetSize);
+         int indexMod = curr_iters % inputSetSize;
+         calculateWeights(indexMod);
          
          curr_iters++;
          
-         if (checkExit())
+         if (indexMod == 3)   //only checks to exit after all 4 sets of inputs are passed
          {
-            exit();
+            if (checkExit())
+            {
+               exit();
+            }
          }
             
       } //while (repeat)
@@ -708,17 +712,6 @@ public class Network
    } //public void finishTraining()
    
    /**
-    * Summarizes all the weights in a string so that the final print isn't as confusing
-    * @return
-    */
-   public String showWeights()
-   {
-      return "Weights: " + Arrays.toString(weights[0][0]) + Arrays.toString(weights[0][1]) +
-            Arrays.toString(weights[1][0]) + Arrays.toString(weights[1][1]);
-   }
-
-   
-   /**
     * prints the results for each input pass
     * @param n in the index of the input being passed in 
     */
@@ -777,15 +770,19 @@ public class Network
       {
          FileWriter fw = outputFile;
          
+         int one = 1;
+         int zero = 0;
+         
          //writing important info
+         fw.write("output.txt\n");      //rewrites itself if retrained
          fw.write(n_inputs + "\n");
          fw.write(n_hiddens1 + "\n");
          fw.write(n_hiddens2 + "\n");
          fw.write(n_outputs + "\n");
          fw.write(lambda + "\n");
          fw.write(n_iters + "\n");
-         fw.write(((train) ? 1 : 0) + "\n");
-         fw.write(((preload) ? 1 : 0) + "\n");
+         fw.write(zero + "\n");       //there is no reason to retrain, so new file should not be trained with
+         fw.write(one + "\n");        //weights must be fixed, not randomized, thats why training happened
          fw.write(start + "\n");
          fw.write(end + "\n");
          fw.write(e_thresh + "\n");
@@ -826,6 +823,7 @@ public class Network
             for (int k = 0; k < n_hiddens1; k++)
             {
                fw.write(weights[0][m][k] + "\n");
+               
             }
          } //for (int m = 0; m < n_inputs; m++)
          
@@ -846,6 +844,7 @@ public class Network
          } //for (int j = 0; j < n_hiddens2; j++)
          
          fw.close();
+         
          
       } //try 
       
@@ -876,6 +875,18 @@ public class Network
       
       //reading parameters
       
+      String out = sc.nextLine();
+      
+    //output file
+      try {
+         outputFile = new FileWriter("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\" + out);
+      } catch (IOException e) {
+         // TODO Auto-generated catch block
+         e.printStackTrace();
+      }
+      
+      
+      
       int in = sc.nextInt();
       int hiddens1 = sc.nextInt();
       int hiddens2 = sc.nextInt();
@@ -889,12 +900,15 @@ public class Network
       double maxr = sc.nextDouble();
       double thresh = sc.nextDouble();
       
+      
+      
       sc.nextLine();
       
       n_inputs = in;
       n_hiddens1 = hiddens1;
       n_hiddens2 = hiddens2;
       n_outputs = outputs;
+      
       
       n_iters = numit;
       lambda = lam;
@@ -906,7 +920,7 @@ public class Network
       preload = (preloadWeights == 1);
       
       e_thresh = thresh;
-      tot_thresh = n_outputs * 2 * e_thresh; //2 is a constant that I picked
+      tot_thresh = n_outputs * e_thresh; //2 is a constant that I picked
       
       configureNetwork();
       
@@ -959,11 +973,11 @@ public class Network
             }
          } //for (int m = 0; m < n_inputs; m++)
          
-         for (int k = 0; k < n_inputs; k++)
+         for (int k = 0; k < n_hiddens1; k++)
          {
-            for (int j = 0; j < n_hiddens1; j++)
+            for (int j = 0; j < n_hiddens2; j++)
             {
-               weights[0][k][j] = sc.nextDouble();
+               weights[1][k][j] = sc.nextDouble();
             }
          } //for (int k = 0; k < n_inputs; k++)
          
@@ -971,10 +985,11 @@ public class Network
          {
             for (int i = 0; i < n_outputs; i++)
             {
-               weights[1][j][i] = sc.nextDouble();      
+               weights[2][j][i] = sc.nextDouble();  
             }
          } //for (int j = 0; j < n_hiddens2; j++)
       } //if (preload)
+      
  
       sc.close();
       
@@ -991,20 +1006,22 @@ public class Network
    public static void main(String[] args)
    {
       
+      File iFile = null;
+      
+      if (args.length > 0)
+      {
       //input file
-      File iFile = new File("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\" + args[0]);
-      
-      
-      //output file
-      FileWriter oFile = null;
-      try {
-         oFile = new FileWriter("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\" + args[1]);
-      } catch (IOException e) {
-         // TODO Auto-generated catch block
-         e.printStackTrace();
+      iFile = new File("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\" + args[0]);
+      }
+      else
+      {
+         iFile = new File("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\default_ABCD.txt");        
       }
       
-      Network network = new Network(iFile, oFile);
+      
+
+      
+      Network network = new Network(iFile);
       
       if (network.isTraining())
       {
