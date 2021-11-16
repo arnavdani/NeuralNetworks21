@@ -8,17 +8,17 @@ import java.io.IOException;
  * 
  * @author Arnav Dani
  * 
- * Created: 10-11-2021
+ * Created: 11-11-2021
  * 
  * Simulates the behavior of an A-B-C-D neural network that has one hidden layer
  * The hidden layer, input layer, and output layer can have any number of activations
  * 
- * 
  * The weights are optimized using a gradient descent and back propagation is utilized
- * to make the process as efficient as possible.
+ * to make the process as efficient as possible. 
+ * 
+ * Tanh is the new activation function, replacing sigmoid
  * 
  * In addition, file reading and writing is implemented.
- *
  */
 
 public class Network 
@@ -41,8 +41,6 @@ public class Network
    int inputSetSize;       //size of training set
    double maxError;        //largest error from a single pass
    double totalError;      //sum of all errors from a single pass
-   
-   
    
    /*
     * exit condition variables
@@ -71,7 +69,6 @@ public class Network
    double[][] deltaWeightsJ;
    double e_thresh;        //error threshold for an individual case
    double tot_thresh;      //total combined error for all cases
-   
    double omegaJ;
    double omegaK;
    double[] upperPsiJ;
@@ -91,15 +88,11 @@ public class Network
    File inputFile;
    FileWriter outputFile;
    
-   
-      
    /**
     * Constructor for the network class
-    * calls the method that sets up all the fundamental arrays 
-    * and initializes the output variable
+    * reads input file and builds the network
     * 
     * @param inFile input file to read config from
-    * @param outFile the output file to write results to
     */
    public Network(File inFile)
    {     
@@ -136,14 +129,12 @@ public class Network
       hiddens1 = new double[n_hiddens1];
       hiddens2 = new double[n_hiddens2];
       outputs = new double[n_outputs];
-     
       
       dimCount = Math.max(n_inputs, n_hiddens1); 
       dimCount = Math.max(dimCount, n_hiddens2); 
       dimCount = Math.max(dimCount, n_outputs);           //to ensure all connections are represented
       
-      weights = new double[n_layers][dimCount][dimCount]; //weights are between layers A-B and B-C
-      
+      weights = new double[n_layers][dimCount][dimCount]; //weights are between layers A-B B-C C-D 
       
       if (!preload)
       {
@@ -152,10 +143,10 @@ public class Network
          
       resetNetwork();
    } //public void configureNetwork()
-
    
    /**
     * identifies the type of targets
+    * temporary method, only used for printing when training on binary gates
     */
    public void setTargets()
    {
@@ -163,7 +154,6 @@ public class Network
       outNames[0] = "OR";
       outNames[1] = "AND";
       outNames[2] = "XOR";
-     
    } //public void setTargets()
       
    /**
@@ -189,10 +179,8 @@ public class Network
    /**
     * Activation function
     * 
-    * This describes the sigmoid function being used
-    * 
-    * This can easily be replaced with any other function, but the derivative will have
-    * to be updated as well; the method for the derivative is lower
+    * This describes the hyperbolic tangent function being used
+    * All previously used functions are commented
     * 
     * @param x input into the function
     * @return type double of x passed through the function
@@ -205,13 +193,12 @@ public class Network
       //hyperbolic tangent
       double e2x = Math.exp(2 * x);
       return (e2x - 1.0) / (e2x + 1.0);
-      
    }
    
    /**
     * derivative of the activation function
     * 
-    * the current activation function is sigmoid: the derivative is f(1-f)
+    * the current activation function is hyperbolic tangent: the derivative is 1-f^2
     * 
     * @param x the input value to pass through the derivative
     * @return the value after being passed through the function 
@@ -225,8 +212,6 @@ public class Network
       //hyperbolic tan
       double act = activate(x);
       return 1 - act * act;
-      
-      
    }
    
    /**
@@ -247,7 +232,8 @@ public class Network
          for (int m = 0; m < n_inputs; m++)
          {
             val += inputs[num][m] * weights[0][m][k];
-         }
+         } //for (int m = 0; m < n_inputs; m++)
+         
          hiddens1[k] = activate(val);
          
       } //for (int k = 0; k < n_hiddens1; k++)
@@ -259,14 +245,11 @@ public class Network
          for (int k = 0; k < n_hiddens1; k++)
          {
             val += hiddens1[k] * weights[1][k][j];
-         }
+         } //for (int j = 0; j < n_hiddens2; j++)
          
          hiddens2[j] = activate(val);
       } //for (int j = 0; j < n_hiddens2; j++)
-      
    } //public void calcHiddens(int num)
-   
-   
    
    /**
     * Used for training
@@ -289,13 +272,10 @@ public class Network
          for (int m = 0; m < n_inputs; m++)
          {
             val += inputs[num][m] * weights[0][m][k];
-            
          } //for (int m = 0; m < n_inputs; m++)
          
          hiddens1[k] = activate(val);
-         
-         thetak[k] = val;
-         
+         thetak[k] = val; 
       } //for (int k = 0; k < n_hiddens1; k++)
       
       for (int j = 0; j < n_hiddens2; j++)
@@ -305,19 +285,16 @@ public class Network
          for (int k = 0; k < n_hiddens1; k++)
          {
             val += hiddens1[k] * weights[1][k][j];
-         }
+         } //for (int k = 0; k < n_hiddens1; k++)
          
          thetaj[j] = val;
          hiddens2[j] = activate(val);
       } //for (int j = 0; j < n_hiddens2; j++)
-      
-      
    } //public void trainCalcHiddens(int num)
    
-   
    /**
-    * calculates the final output and theta(i) values using the dot products of the weights
-    * in the hidden layer
+    * calculates the final output using the dot products of the weights
+    * in the hidden layers
     * 
     * @param input identifies the binary input being used
     * 
@@ -332,20 +309,18 @@ public class Network
          for (int j = 0; j < n_hiddens2; j++)
          {
             val += hiddens2[j] * weights[2][j][i];
-         }
+         } //for (int j = 0; j < n_hiddens2; j++)
          
          outputs[i] = activate(val);
          
       } //for (int i = 0; i < n_outputs; i++)
    } //public void calcOutput(int input)
    
-   
-   
    /**
     * used for training
     * 
     * calculates the final output and theta(i) values using the dot products of the weights
-    * in the hidden layer
+    * in the hidden layers
     * 
     * calculates many values used in training
     * 
@@ -354,7 +329,6 @@ public class Network
     */
    public void trainCalcOutput(int input)
    {
-      
       for (int i = 0; i < n_outputs; i++)
       {
          double val = 0.0;
@@ -362,26 +336,22 @@ public class Network
          for (int j = 0; j < n_hiddens2; j++)
          {
             val += hiddens2[j] * weights[2][j][i];
-         }
+         } //for (int j = 0; j < n_hiddens2; j++)
          
          outputs[i] = activate(val);
          
+         //training related values
          thetai[i] = val;
          omega[i] = getError(i, input);
          errorVals[input][i] = omega[i];
          psiLowerI[i] = omega[i] * actDeriv(thetai[i]);        
-         
       } //for (int i = 0; i < n_outputs; i++)
    } //public void trainCalcOutput(int input)
    
-   
-   
    /**
-    * 
     * Since there are 4 possible inputs for an Xor, n represents
     * which input is being tested to that the output of the network
     * can be correctly compared to the correct ground truth
-    * 
     * 
     * @param n the row in the truth table being evaluated
     * @param out represents each output and its unique truth table
@@ -425,7 +395,6 @@ public class Network
        * being passed in through the network
        */
       
-      
       setTargets(); //helps split between the 3 output cases
       
       for (int i = 0; i < inputSetSize; i++)
@@ -433,17 +402,12 @@ public class Network
          System.out.println("\n\n");
          forwardPass(i);
          displayRunResults(i);
-      }
-       //for (int i = 0; i < inputSetSize; i++)
+      }//for (int i = 0; i < inputSetSize; i++)
+      
    } //public void run()
 
    /*
     * training specific code
-    * 
-    * The code below this point includes randomly setting and initializing weights
-    * calculates the change in weights
-    * checks for exit
-    * 
     */
    
    /**
@@ -476,25 +440,21 @@ public class Network
             {
                weights[n][k][j] = randomgen(start, end); 
             }
-         } //for (int k = 0; k < n_inputs; k++)
-      } // for (int n = 0; n < n_layers; n++)
-      
+         } //for (int k = 0; k < dimCount; k++)
+      } // for (int n = 0; n < n_layers; n++) 
    } //public void randomizeWeights()
    
    
    /**
-    * Implements gradient descent to calculate the optimal change for each
+    * Implements gradient descent and backpropgatation to calculate the optimal change for each
     * each and stores that amount to apply later
-    * 
-    * weight changes must be applied later to stay consistent with the mathematical formulas
     * 
     * @param input identifies the input set - the integer helps identify whether the input was 
     *    0,0     0,1     1,0     1,1
-    * 
     */
    public void calculateWeights(int input)
    {
-      trainForwardPass(input);           //have to do an initial forward pass to do calculations
+      trainForwardPass(input);           //initial forward pass
       
       for (int j = 0; j < n_hiddens2; j++)
       {
@@ -526,9 +486,7 @@ public class Network
          }//for (int m = 0; m < n_inputs; m++)
          
       } //for (int k = 0; k < n_hiddens1; k++)
-      
    } //public void calculateWeights(int input)   
-      
    
    /**
     * checks whether all and any exit conditions are met
@@ -563,14 +521,12 @@ public class Network
        * The error check I use has 2 steps
        * 
        * First - every error value must be less than the absolute value of an error threshold
-       * for all 4 inputs - for example, if e_thresh is 0.05, the error must be <0.05 or <-0.05
+       * for all inputs - for example, if e_thresh is 0.05, the error must be <0.05 or <-0.05
        * 
-       * Second - the sum of the absolute values of all errors should be less than 2 times the threshold (tot_thresh)
+       * Second - the sum of the absolute values of all errors should be less than #outputs  * threshold (tot_thresh)
        * 
-       * Both are necessary - only checking total error could allow outliers to pass through
-       * and only checking individual error requires a higher threshold to precision
-       * 
-       * The thresholds are mutable via a parameter passed through the constructor
+       * Both are necessary to limit outliers
+       * The thresholds are mutable via a parameter in control file
        */
       double currentError = 0.0;
       boolean errcheck = true;
@@ -586,13 +542,11 @@ public class Network
             maxError = Math.max(maxError, Math.abs(currentError));
             if (currentError > e_thresh || currentError < -e_thresh )
             {           
-               errcheck = false;
-               
+               errcheck = false;         
             }   
            
          } //for (int j = 0; j < inputSetSize; j++)
       } //for (int i = 0; i < n_outputs; i++)
-      
       
       exitConditions[2] = (totalError < tot_thresh) && errcheck;
       
@@ -601,9 +555,8 @@ public class Network
        */
       
       /*
-       * if there is one true error check, return true to exit the method
+       * if there is one true error check, return true
        */
-      
       boolean exit = false;
       
       for (int i = 0; i < N_ERRORCHECKS; i++)
@@ -617,9 +570,7 @@ public class Network
    
    /**
     * exits the training loop by changing the repeat boolean to false
-    * 
     * This signifies that the loop should no longer be repeating
-    * 
     */
    public void exit()
    {
@@ -629,13 +580,11 @@ public class Network
    /**
     * executes the full training sequence to train the network
     * to be able to recognize an XOR pattern
-    * 
     */
    public void train()
    {     
       resetNetwork();
       setTargets();
-      
       startTime = System.currentTimeMillis();
       
       while (repeat)
@@ -651,15 +600,13 @@ public class Network
             {
                exit();
             }
-         }
-            
+         }  
       } //while (repeat)
       
       endTime = System.currentTimeMillis();
       elapsed = endTime - startTime;
       
       finishTraining();
-      
    } //public void train()
    
    /*
@@ -670,8 +617,7 @@ public class Network
     */
    
    public void finishTraining()
-   {  
-      
+   {   
       displayNetworkConfig();
       
       System.out.println("Training done\nReason for finishing:");
@@ -689,13 +635,11 @@ public class Network
                      e_thresh + "\n\t\tCombined error was " + totalError + " which is less than " + tot_thresh +
                      "\n\nBoth of these conditions had to be met for termination");
       
-      
-      System.out.println("\n\nNumber of iterations at ending: " + curr_iters);
-      
       /*
        * add more prints for each added exit condition
        */
       
+      System.out.println("\n\nNumber of iterations at ending: " + curr_iters);
       
       /*
        * last forward pass for results
@@ -708,7 +652,6 @@ public class Network
       } 
       
       writeToFile();
-      
    } //public void finishTraining()
    
    /**
@@ -717,15 +660,13 @@ public class Network
     */
    public void displayRunResults(int n)
    {
-      
       System.out.println("Run Complete - Inputs: " + (int)inputs[n][0] + " " +
                (int)inputs[n][1]);
       
       for (int i = 0; i < n_outputs; i++)
       {
          System.out.println("Output " + outNames[i] + ": " + outputs[i]);
-      }
-               
+      }       
    } //public void displayRunResults(int n)
    
    
@@ -742,7 +683,6 @@ public class Network
             System.out.println("\t\tExpected Output :" + truthtable[n][i] +
                "\t\tOutput: " + outputs[i] + "\t\tError: " + errorVals[n][i]);
          } //for (int i = 0; i < n_outputs; i++)        
-
    } //public void displayTrainResults(int n)
    
    
@@ -797,8 +737,7 @@ public class Network
          {
             for (int j = 0; j < n_inputs; j++)
             {
-               fw.write(inputs[i][j] + "\n");
-               
+               fw.write(inputs[i][j] + "\n");   
             }
          } //for (int i = 0; i < inputSetSize; i++)
          
@@ -822,8 +761,7 @@ public class Network
          {
             for (int k = 0; k < n_hiddens1; k++)
             {
-               fw.write(weights[0][m][k] + "\n");
-               
+               fw.write(weights[0][m][k] + "\n");          
             }
          } //for (int m = 0; m < n_inputs; m++)
          
@@ -843,9 +781,7 @@ public class Network
             }
          } //for (int j = 0; j < n_hiddens2; j++)
          
-         fw.close();
-         
-         
+         fw.close(); 
       } //try 
       
       catch (IOException e) 
@@ -853,15 +789,14 @@ public class Network
          // TODO Auto-generated catch block
          e.printStackTrace();
       }
-      
    } //public void writeToFile()
    
    /*
-    * reads in everything that is needed from a specified text file
+    * reads in everything that is needed from a default or specified text file
     */
    public void readfile()
    {  
-      //checks that file is found
+      //finds file
       Scanner sc = null;
       try 
       {
@@ -874,19 +809,19 @@ public class Network
       }
       
       //reading parameters
-      
       String out = sc.nextLine();
       
     //output file
-      try {
+      try 
+      {
          outputFile = new FileWriter("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\" + out);
-      } catch (IOException e) {
+      } 
+      catch (IOException e) 
+      {
          // TODO Auto-generated catch block
          e.printStackTrace();
       }
-      
-      
-      
+          
       int in = sc.nextInt();
       int hiddens1 = sc.nextInt();
       int hiddens2 = sc.nextInt();
@@ -899,20 +834,15 @@ public class Network
       double minr = sc.nextDouble();
       double maxr = sc.nextDouble();
       double thresh = sc.nextDouble();
-      
-      
-      
+         
       sc.nextLine();
       
       n_inputs = in;
       n_hiddens1 = hiddens1;
       n_hiddens2 = hiddens2;
       n_outputs = outputs;
-      
-      
       n_iters = numit;
       lambda = lam;
-      
       start = minr;
       end = maxr;
       
@@ -920,24 +850,20 @@ public class Network
       preload = (preloadWeights == 1);
       
       e_thresh = thresh;
-      tot_thresh = n_outputs * e_thresh; //2 is a constant that I picked
-      
+      tot_thresh = n_outputs * e_thresh; 
       configureNetwork();
       
       sc.nextLine();
       
-      //inputs
-      
+      //inputs      
       inputSetSize = sc.nextInt();
-      
       inputs = new double[inputSetSize][n_inputs];
       
       for (int i = 0; i < inputSetSize; i++)
       {
          for (int j = 0; j < n_inputs; j++)
          {
-            inputs[i][j] = sc.nextDouble();
-            
+            inputs[i][j] = sc.nextDouble();     
          }
       } //for (int i = 0; i < inputSetSize; i++)
       
@@ -961,8 +887,7 @@ public class Network
       sc.nextLine();
       
       //weights
-      
-      
+       
       if (preload)
       {
          for (int m = 0; m < n_inputs; m++)
@@ -989,10 +914,8 @@ public class Network
             }
          } //for (int j = 0; j < n_hiddens2; j++)
       } //if (preload)
-      
  
       sc.close();
-      
    } //public void readfile()
    
    /**
@@ -1005,21 +928,17 @@ public class Network
     */
    public static void main(String[] args)
    {
-      
       File iFile = null;
       
-      if (args.length > 0)
+      if (args.length > 0)        //checks if argument has been passed in
       {
-      //input file
-      iFile = new File("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\" + args[0]);
+      iFile = new File("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\" + 
+                        args[0]); //input file
       }
-      else
+      else //default file
       {
          iFile = new File("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\default_ABCD.txt");        
       }
-      
-      
-
       
       Network network = new Network(iFile);
       
@@ -1030,8 +949,6 @@ public class Network
       else
       {
          network.run();
-      }
-      
+      } 
    } //public static void main(String[] args)
-
 } //public class Network
