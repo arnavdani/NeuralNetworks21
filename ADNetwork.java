@@ -117,9 +117,9 @@ public class Network
    {  
       if (train)
       {
-         thetaj = new double[n_hiddens1];
+         thetaj = new double[n_hiddens2];
          thetai = new double[n_outputs];
-         thetak = new double[n_hiddens2];
+         thetak = new double[n_hiddens1];
          psiLowerI = new double[n_outputs];
          omega = new double[n_outputs];
          upperPsiJ = new double[n_hiddens2];
@@ -188,11 +188,11 @@ public class Network
    public double activate(double x)
    {
       //sigmoid
-      //return  1.0 / (1.0 + Math.exp(-x));
+      return  1.0 / (1.0 + Math.exp(-x));
       
       //hyperbolic tangent
-      double e2x = Math.exp(2 * x);
-      return (e2x - 1.0) / (e2x + 1.0);
+      //double e2x = Math.exp(2 * x);
+      //return (e2x - 1.0) / (e2x + 1.0);
    }
    
    /**
@@ -206,12 +206,12 @@ public class Network
    public double actDeriv(double x)
    {
       //sigmoid
-      //double act = activate(x);
-      //return act * (1.0 - act);
+      double act = activate(x);
+      return act * (1.0 - act);
       
       //hyperbolic tan
-      double act = activate(x);
-      return 1 - act * act;
+      //double act = activate(x);
+      //return 1 - act * act;
    }
    
    /**
@@ -754,7 +754,7 @@ public class Network
          } //for (int i = 0; i < inputSetSize; i++)
          
          //writing output weights
-         
+                  
          fw.write("------------\n");
          
          for (int m = 0; m < n_inputs; m++)
