@@ -5,7 +5,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 
 /**
- * 
  * @author Arnav Dani
  * 
  * Created: 11-11-2021
@@ -16,7 +15,7 @@ import java.io.IOException;
  * The weights are optimized using a gradient descent and back propagation is utilized
  * to make the process as efficient as possible. 
  * 
- * Tanh is the new activation function, replacing sigmoid
+ * Uses sigmoid activation function
  * 
  * In addition, file reading and writing is implemented.
  */
@@ -29,7 +28,7 @@ public class Network
    double[] hiddens2;      //nodes in the 2nd hidden layer   
    double[][][] weights;   //weights in the network
    double[][] truthtable;  //truth table for xor
-   String[] outNames;      //clarifies the output being evaluated (Or/and/xor etc)
+   String[] outNames;      //clarifies the output being evaluated (Or/and/xor etc), temporary
    double[][] errorVals;   //store errors from each pass to use for error checks
    int n_inputs;           //constant with the number of sets of inputs, 4 for xor
    int n_hiddens1;         //constant for the number of hidden nodes in the first hidden layer
@@ -48,9 +47,9 @@ public class Network
    
    int n_iters;                  //max number of iterations the network should pass through
    final int N_ERRORCHECKS = 3;
+   boolean[] exitConditions;
    int curr_iters;               //current number of iterations
    double lambda;                //learning rate
-   boolean[] exitConditions;
    
    boolean repeat;               //says whether to do another training pass
    boolean train;                //says whether the network is training or running
@@ -117,15 +116,15 @@ public class Network
    {  
       if (train)
       {
-         thetaj = new double[n_hiddens2];
          thetai = new double[n_outputs];
+         thetaj = new double[n_hiddens2];
          thetak = new double[n_hiddens1];
          psiLowerI = new double[n_outputs];
          omega = new double[n_outputs];
          upperPsiJ = new double[n_hiddens2];
       } //if (train)
       
-      n_layers = 3;                          //excluding output layer since no connection leaves the output layer
+      n_layers = 3;                                      //excluding output layer
       hiddens1 = new double[n_hiddens1];
       hiddens2 = new double[n_hiddens2];
       outputs = new double[n_outputs];
@@ -178,9 +177,7 @@ public class Network
    
    /**
     * Activation function
-    * 
-    * This describes the hyperbolic tangent function being used
-    * All previously used functions are commented
+    * curent function is sigmoid
     * 
     * @param x input into the function
     * @return type double of x passed through the function
@@ -190,15 +187,14 @@ public class Network
       //sigmoid
       return  1.0 / (1.0 + Math.exp(-x));
       
-      //hyperbolic tangent
+      //tanh
       //double e2x = Math.exp(2 * x);
       //return (e2x - 1.0) / (e2x + 1.0);
    }
    
    /**
     * derivative of the activation function
-    * 
-    * the current activation function is hyperbolic tangent: the derivative is 1-f^2
+    * the current activation function is sigmoid
     * 
     * @param x the input value to pass through the derivative
     * @return the value after being passed through the function 
@@ -209,7 +205,7 @@ public class Network
       double act = activate(x);
       return act * (1.0 - act);
       
-      //hyperbolic tan
+      //tanh
       //double act = activate(x);
       //return 1 - act * act;
    }
@@ -297,7 +293,6 @@ public class Network
     * in the hidden layers
     * 
     * @param input identifies the binary input being used
-    * 
     */
    public void calcOutput(int input)
    {
@@ -325,7 +320,6 @@ public class Network
     * calculates many values used in training
     * 
     * @param input identifies the binary input being used
-    * 
     */
    public void trainCalcOutput(int input)
    {
@@ -390,11 +384,6 @@ public class Network
     */
    public void run()
    {
-      /*
-       * give values to the weights and initializes the inputs
-       * being passed in through the network
-       */
-      
       setTargets(); //helps split between the 3 output cases
       
       for (int i = 0; i < inputSetSize; i++)
@@ -403,13 +392,8 @@ public class Network
          forwardPass(i);
          displayRunResults(i);
       }//for (int i = 0; i < inputSetSize; i++)
-      
    } //public void run()
 
-   /*
-    * training specific code
-    */
-   
    /**
     * Random number generator that returns a random double within a specific range
     * 
@@ -553,10 +537,7 @@ public class Network
       /*
        * as more error checks are added, they will be processed here
        */
-      
-      /*
-       * if there is one true error check, return true
-       */
+
       boolean exit = false;
       
       for (int i = 0; i < N_ERRORCHECKS; i++)
@@ -564,7 +545,6 @@ public class Network
          if (exitConditions[i] == true)
                exit = true;
       }
-      
       return exit;
    } //public boolean checkExit()
    
@@ -615,7 +595,6 @@ public class Network
     * Lists all the reasons why the training sequence terminated and 
     * then prints information about the network and results
     */
-   
    public void finishTraining()
    {   
       displayNetworkConfig();
@@ -709,7 +688,6 @@ public class Network
       try 
       {
          FileWriter fw = outputFile;
-         
          int one = 1;
          int zero = 0;
          
@@ -935,7 +913,7 @@ public class Network
       iFile = new File("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\" + 
                         args[0]); //input file
       }
-      else //default file
+      else                       //default file
       {
          iFile = new File("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\default_ABCD.txt");        
       }
