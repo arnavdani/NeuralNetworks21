@@ -26,15 +26,15 @@ import java.io.IOException;
 
 public class Network 
 {
-   double[][] inputs;      //input activations for xor 
+   double[][] inputs;      //input activations read in
    double[][][] weights;   //weights in the network
    double[][] activations; //generalizing all the layers into one array
-   double[][] truthtable;  //truth table for xor
+   double[][] truthtable;  //truth table with ideal outputs
    String[] outNames;      //clarifies the output being evaluated (Or/and/xor etc), temporary
    double[][] errorVals;   //store errors from each pass to use for error checks
-   int n_inputs;           //constant with the number of sets of inputs, 4 for xor
+   int n_inputs;           //number of inputs in the input layer of the network
    int n_hiddens1;         //constant for the number of hidden nodes in the first hidden layer
-   int n_hiddens2;         //constant for nubmer of hidden nodes in the 2nd hidden layer         
+   int n_hiddens2;         //constant for number of hidden nodes in the 2nd hidden layer         
    int n_layers;           //number of layers
    int n_conns;            //number of connections between layers, is just n_layers - 1
    int n_outputs;          //number of outputs
@@ -43,6 +43,7 @@ public class Network
    int inputSetSize;       //size of training set
    double maxError;        //largest error from a single pass
    double totalError;      //sum of all errors from a single pass
+   int dimCount;           //max dimensions; used to initialize arrays to fit everything
    
    /*
     * exit condition variables
@@ -53,12 +54,9 @@ public class Network
    boolean[] exitConditions;
    int curr_iters;               //current number of iterations
    double lambda;                //learning rate
-   
    boolean repeat;               //says whether to do another training pass
    boolean train;                //says whether the network is training or running
    boolean preload;              //whether to use preloaded weights or fixed weights
-   
-   int dimCount;
    
    /*
     * training variables
@@ -66,7 +64,6 @@ public class Network
    double[] omega;
    double[][] thetas;
    double[] psiLowerI;
-   double[][] deltaWeightsJ;
    double e_thresh;        //error threshold for an individual case
    double tot_thresh;      //total combined error for all cases
    double omegaJ;
@@ -84,7 +81,6 @@ public class Network
    /*
     * file reading/writing
     */
-   
    File inputFile;
    FileWriter outputFile;
    
@@ -115,8 +111,6 @@ public class Network
     */
    public void configureNetwork()
    {  
-      
-      
       n_layers = 4;
       n_conns = 3;   
       
@@ -177,7 +171,7 @@ public class Network
    
    /**
     * Activation function
-    * curent function is sigmoid
+    * current function is sigmoid
     * 
     * @param x input into the function
     * @return type double of x passed through the function
@@ -316,9 +310,7 @@ public class Network
     * used for training
     * 
     * calculates the final output and theta(i) values using the dot products of the weights
-    * in the hidden layers
-    * 
-    * calculates many values used in training
+    * in the hidden layers and many values used in training
     * 
     * @param input identifies the binary input being used
     */
