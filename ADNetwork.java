@@ -12,6 +12,10 @@ import java.io.IOException;
  * Simulates the behavior of an A-B-C-D neural network that has one hidden layer
  * The hidden layer, input layer, and output layer can have any number of activations
  * 
+ * Previously, the activations and theta values were in seperate arrays for each layer
+ * Now, the layers have been generalized into a 2d array of activations and the theta
+ * values are in a 2d array as well
+ * 
  * The weights are optimized using a gradient descent and back propagation is utilized
  * to make the process as efficient as possible. 
  * 
@@ -222,7 +226,7 @@ public class Network
          
          for (int m = 0; m < n_inputs; m++)
          {
-            activations[0][m] = inputs[num][m];
+            activations[0][m] = inputs[num][m];          //setting inputs
             val += activations[0][m] * weights[0][m][k];
          } //for (int m = 0; m < n_inputs; m++)
          
@@ -263,7 +267,7 @@ public class Network
          
          for (int m = 0; m < n_inputs; m++)
          {
-            activations[0][m] = inputs[num][m];
+            activations[0][m] = inputs[num][m];          //setting inputs
             val += activations[0][m] * weights[0][m][k];
          } //for (int m = 0; m < n_inputs; m++)
          
