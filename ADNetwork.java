@@ -22,11 +22,9 @@ import java.io.IOException;
 
 public class Network 
 {
-   double[] outputs;       //output activation
-   double[][] inputs;      //input activations for xor
-   double[] hiddens1;      //nodes in the 1st hidden layer
-   double[] hiddens2;      //nodes in the 2nd hidden layer   
+   double[][] inputs;      //input activations for xor 
    double[][][] weights;   //weights in the network
+   double[][] activations; //generalizing all the layers into one array
    double[][] truthtable;  //truth table for xor
    String[] outNames;      //clarifies the output being evaluated (Or/and/xor etc), temporary
    double[][] errorVals;   //store errors from each pass to use for error checks
@@ -34,6 +32,7 @@ public class Network
    int n_hiddens1;         //constant for the number of hidden nodes in the first hidden layer
    int n_hiddens2;         //constant for nubmer of hidden nodes in the 2nd hidden layer         
    int n_layers;           //number of layers
+   int n_conns;            //number of connections between layers, is just n_layers - 1
    int n_outputs;          //number of outputs
    double start;           //start of random range
    double end;             //end of random range
@@ -61,9 +60,7 @@ public class Network
     * training variables
     */
    double[] omega;
-   double[] thetai;
-   double[] thetaj;
-   double[] thetak;  
+   double[][] thetas;
    double[] psiLowerI;
    double[][] deltaWeightsJ;
    double e_thresh;        //error threshold for an individual case
@@ -114,26 +111,25 @@ public class Network
     */
    public void configureNetwork()
    {  
-      if (train)
-      {
-         thetai = new double[n_outputs];
-         thetaj = new double[n_hiddens2];
-         thetak = new double[n_hiddens1];
-         psiLowerI = new double[n_outputs];
-         omega = new double[n_outputs];
-         upperPsiJ = new double[n_hiddens2];
-      } //if (train)
       
-      n_layers = 3;                                      //excluding output layer
-      hiddens1 = new double[n_hiddens1];
-      hiddens2 = new double[n_hiddens2];
-      outputs = new double[n_outputs];
+      
+      n_layers = 4;
+      n_conns = 3;   
       
       dimCount = Math.max(n_inputs, n_hiddens1); 
       dimCount = Math.max(dimCount, n_hiddens2); 
       dimCount = Math.max(dimCount, n_outputs);           //to ensure all connections are represented
       
-      weights = new double[n_layers][dimCount][dimCount]; //weights are between layers A-B B-C C-D 
+      weights = new double[n_conns][dimCount][dimCount]; //weights are between layers A-B B-C C-D 
+      activations = new double[n_layers][dimCount];
+      
+      if (train)
+      {
+         thetas = new double[n_conns][dimCount];
+         psiLowerI = new double[n_outputs];
+         omega = new double[n_outputs];
+         upperPsiJ = new double[n_hiddens2];
+      } //if (train)
       
       if (!preload)
       {
@@ -220,17 +216,17 @@ public class Network
    public void calcHiddens(int num)
    {
       double val = 0.0;
-      
       for (int k = 0; k < n_hiddens1; k++)
       {
          val = 0.0;    
          
          for (int m = 0; m < n_inputs; m++)
          {
-            val += inputs[num][m] * weights[0][m][k];
+            activations[0][m] = inputs[num][m];
+            val += activations[0][m] * weights[0][m][k];
          } //for (int m = 0; m < n_inputs; m++)
          
-         hiddens1[k] = activate(val);
+         activations[1][k] = activate(val);
          
       } //for (int k = 0; k < n_hiddens1; k++)
       
@@ -240,10 +236,10 @@ public class Network
                
          for (int k = 0; k < n_hiddens1; k++)
          {
-            val += hiddens1[k] * weights[1][k][j];
+            val += activations[1][k] * weights[1][k][j];
          } //for (int j = 0; j < n_hiddens2; j++)
          
-         hiddens2[j] = activate(val);
+         activations[2][j] = activate(val);
       } //for (int j = 0; j < n_hiddens2; j++)
    } //public void calcHiddens(int num)
    
@@ -267,11 +263,12 @@ public class Network
          
          for (int m = 0; m < n_inputs; m++)
          {
-            val += inputs[num][m] * weights[0][m][k];
+            activations[0][m] = inputs[num][m];
+            val += activations[0][m] * weights[0][m][k];
          } //for (int m = 0; m < n_inputs; m++)
          
-         hiddens1[k] = activate(val);
-         thetak[k] = val; 
+         activations[1][k] = activate(val);
+         thetas[0][k] = val; 
       } //for (int k = 0; k < n_hiddens1; k++)
       
       for (int j = 0; j < n_hiddens2; j++)
@@ -280,11 +277,11 @@ public class Network
                
          for (int k = 0; k < n_hiddens1; k++)
          {
-            val += hiddens1[k] * weights[1][k][j];
+            val += activations[1][k] * weights[1][k][j];
          } //for (int k = 0; k < n_hiddens1; k++)
          
-         thetaj[j] = val;
-         hiddens2[j] = activate(val);
+         thetas[1][j] = val;
+         activations[2][j] = activate(val);
       } //for (int j = 0; j < n_hiddens2; j++)
    } //public void trainCalcHiddens(int num)
    
@@ -303,10 +300,10 @@ public class Network
          
          for (int j = 0; j < n_hiddens2; j++)
          {
-            val += hiddens2[j] * weights[2][j][i];
+            val += activations[2][j] * weights[2][j][i];
          } //for (int j = 0; j < n_hiddens2; j++)
          
-         outputs[i] = activate(val);
+         activations[3][i] = activate(val);  
          
       } //for (int i = 0; i < n_outputs; i++)
    } //public void calcOutput(int input)
@@ -329,16 +326,16 @@ public class Network
          
          for (int j = 0; j < n_hiddens2; j++)
          {
-            val += hiddens2[j] * weights[2][j][i];
+            val += activations[2][j] * weights[2][j][i];
          } //for (int j = 0; j < n_hiddens2; j++)
          
-         outputs[i] = activate(val);
+         activations[3][i] = activate(val);
          
          //training related values
-         thetai[i] = val;
+         thetas[2][i] = val;
          omega[i] = getError(i, input);
          errorVals[input][i] = omega[i];
-         psiLowerI[i] = omega[i] * actDeriv(thetai[i]);        
+         psiLowerI[i] = omega[i] * actDeriv(thetas[2][i]);        
       } //for (int i = 0; i < n_outputs; i++)
    } //public void trainCalcOutput(int input)
    
@@ -353,7 +350,7 @@ public class Network
     */
    public double getError(int out, int num)
    {
-      double error = truthtable[num][out] - outputs[out];
+      double error = truthtable[num][out] - activations[3][out];
       return error;
    }
    
@@ -416,7 +413,7 @@ public class Network
     */
    public void randomizeWeights()
    {
-      for (int n = 0; n < n_layers; n++)
+      for (int n = 0; n < n_conns; n++)
       {
          for (int k = 0; k < dimCount; k++)
          {
@@ -430,11 +427,10 @@ public class Network
    
    
    /**
-    * Implements gradient descent and backpropgatation to calculate the optimal change for each
+    * Implements gradient descent and backpropagation to calculate the optimal change for each
     * each and stores that amount to apply later
     * 
-    * @param input identifies the input set - the integer helps identify whether the input was 
-    *    0,0     0,1     1,0     1,1
+    * @param input identifies the input set - eg ([0,0] [1,0] [0,1] or [1,1]
     */
    public void calculateWeights(int input)
    {
@@ -446,10 +442,10 @@ public class Network
          for (int i = 0; i < n_outputs; i++)
          {
             omegaJ += psiLowerI[i] * weights[2][j][i];            
-            weights[2][j][i] += lambda * hiddens2[j] * psiLowerI[i];
+            weights[2][j][i] += lambda * activations[2][j] * psiLowerI[i];
          } //for (int i = 0; i < n_outputs; i++)
          
-         upperPsiJ[j] = omegaJ * actDeriv(thetaj[j]);
+         upperPsiJ[j] = omegaJ * actDeriv(thetas[1][j]);
          
       } //for (int j = 0; j < n_hiddens2; j++)
       
@@ -459,14 +455,14 @@ public class Network
          for (int j = 0; j < n_hiddens2; j++)
          {
             omegaK += upperPsiJ[j] * weights[1][k][j];
-            weights[1][k][j] += lambda * hiddens1[k] * upperPsiJ[j];      
+            weights[1][k][j] += lambda * activations[1][k] * upperPsiJ[j];      
          } //for (int j = 0; j < n_hiddens2; j++)
          
-         upperPsiK = omegaK * actDeriv(thetak[k]);
+         upperPsiK = omegaK * actDeriv(thetas[0][k]);
          
          for (int m = 0; m < n_inputs; m++)
          {
-            weights[0][m][k] += lambda * inputs[input][m] * upperPsiK; 
+            weights[0][m][k] += lambda * activations[0][m] * upperPsiK; 
          }//for (int m = 0; m < n_inputs; m++)
          
       } //for (int k = 0; k < n_hiddens1; k++)
@@ -644,7 +640,7 @@ public class Network
       
       for (int i = 0; i < n_outputs; i++)
       {
-         System.out.println("Output " + outNames[i] + ": " + outputs[i]);
+         System.out.println("Output " + outNames[i] + ": " + activations[3][i]);
       }       
    } //public void displayRunResults(int n)
    
@@ -660,7 +656,7 @@ public class Network
          for (int i = 0; i < n_outputs; i++)
          {
             System.out.println("\t\tExpected Output :" + truthtable[n][i] +
-               "\t\tOutput: " + outputs[i] + "\t\tError: " + errorVals[n][i]);
+               "\t\tOutput: " + activations[3][i] + "\t\tError: " + errorVals[n][i]);
          } //for (int i = 0; i < n_outputs; i++)        
    } //public void displayTrainResults(int n)
    
@@ -675,8 +671,10 @@ public class Network
    public void displayNetworkConfig()
    {
       System.out.println("Lambda: " + lambda + "\nNumber of inputs: " + n_inputs + "\nNumber of hiddens1 :" + n_hiddens1 + 
-            "\nNumber of hiddens2: " + n_hiddens2 + "\nNumber of outputs: " + n_outputs + "\nWeight generation information: Min value: " + 
-            start + "\tMax value: " + end + "\nPreloaded weights: " + preload + "\nExecution time in ms: " + elapsed + " ms\n"); 
+            "\nNumber of hiddens2: " + n_hiddens2 + "\nNumber of outputs: " +
+            n_outputs + "\nWeight generation information: Min value: " + 
+            start + "\tMax value: " + end + "\nPreloaded weights: " + preload + 
+            "\nExecution time in ms: " + elapsed + " ms\n"); 
    }
    
    /*
