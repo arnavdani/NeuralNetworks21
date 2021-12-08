@@ -107,6 +107,8 @@
  *   When lossy casts are done (e.g. int to byte) the conversion is done modulo the length of the smaller type.
  */
 import java.io.*;
+import java.util.*;
+import java.io.FileWriter;
 
 /*
  * A member-variable-only class for holding the RGBQUAD C structure elements.
@@ -259,7 +261,7 @@ public class DibDump
       if (args.length > 2)
          outText = args[2];
       else
-         outText = args[0] + "act.txt";
+         outText = args[0].substring(0, args[0].indexOf(".")) + "_activations.txt";
       
       
 
@@ -786,6 +788,8 @@ typedef RGBQUAD FAR* LPRGBQUAD;
 
 /*
  * Now write out the true color bitmap (24-bits) to a disk file. This is here mostly to be sure we did it all correctly.
+ * 
+ * AD start
  *
  */
       
@@ -795,37 +799,54 @@ typedef RGBQUAD FAR* LPRGBQUAD;
       int Ycord = 0;
       int pelSum = 0;
       
-      for (i = 0; i < bmpInfoHeader_biHeight; i++)
-      {
-         for (j = 0; j < bmpInfoHeader_biWidth; j++)
+      try {
+         FileWriter writer = new FileWriter(outText);
+         
+         for (i = 0; i < bmpInfoHeader_biHeight; i++)
          {
-            pel = imageArray[i][j];
-            pel = dibdumper.colorToGrayscale(pel);           
-            pel = ~pel + 256;
-            imageArray[i][j] = pel;
-            pel = dibdumper.pelToRGB(pel).blue;
-            
-            //center of mass
-            
-            pelSum += pel;
-            xSum += pel * j;
-            ySum += pel * i;
+            for (j = 0; j < bmpInfoHeader_biWidth; j++)
+            {
+               pel = imageArray[i][j];
+               pel = dibdumper.colorToGrayscale(pel);           
+               pel = ~pel + 256;
+               imageArray[i][j] = pel;
+               pel = dibdumper.pelToRGB(pel).blue;
+               writer.write(pel + "\n");
+               
+               //center of mass
+               
+               pelSum += pel;
+               xSum += pel * j;
+               ySum += pel * i;
+            }
          }
+         
+         writer.close();
+         
+         Xcord = xSum / pelSum;
+         Ycord = ySum / pelSum;
+         
+         //testing center
+         for (i = 0; i < bmpInfoHeader_biWidth; i++)
+         {
+            imageArray[Ycord][i] = dibdumper.rgbToPel(255,0,0);
+         }
+         
+         for (i = 0; i < bmpInfoHeader_biHeight; i++)
+         {
+            imageArray[i][Xcord] = dibdumper.rgbToPel(255,0,0);
+         }
+         
       }
       
-      Xcord = xSum / pelSum;
-      Ycord = ySum / pelSum;
-      
-      //testing center
-      for (i = 0; i < bmpInfoHeader_biWidth; i++)
-      {
-         imageArray[Ycord][i] = dibdumper.rgbToPel(255,0,0);
+      catch (IOException e){
+         System.out.println("ur mom");
+         e.printStackTrace();
       }
       
-      for (i = 0; i < bmpInfoHeader_biHeight; i++)
-      {
-         imageArray[i][Xcord] = dibdumper.rgbToPel(255,0,0);
-      }
+      
+      
+      
       
       
       
