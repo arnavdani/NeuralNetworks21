@@ -256,7 +256,7 @@ public class DibDump
       if (args.length > 1)
          outFileName = args[1];
       else
-         outFileName = "test2.bmp";
+         outFileName = args[0].substring(0, args[0].indexOf(".")) + "_cropped.bmp";
       
       if (args.length > 2)
          outText = args[2];
@@ -785,6 +785,9 @@ typedef RGBQUAD FAR* LPRGBQUAD;
             System.out.printf("\n");
             }
          }
+      
+      
+      
 
 /*
  * Now write out the true color bitmap (24-bits) to a disk file. This is here mostly to be sure we did it all correctly.
@@ -811,7 +814,7 @@ typedef RGBQUAD FAR* LPRGBQUAD;
                pel = ~pel + 256;
                imageArray[i][j] = pel;
                pel = dibdumper.pelToRGB(pel).blue;
-               writer.write(pel + "\n");
+               writer.write(((double)pel / 256.0) + "\n");
                
                //center of mass
                
@@ -824,29 +827,32 @@ typedef RGBQUAD FAR* LPRGBQUAD;
          writer.close();
          
          Xcord = xSum / pelSum;
-         Ycord = ySum / pelSum;
-         
-         //testing center
-         for (i = 0; i < bmpInfoHeader_biWidth; i++)
-         {
-            imageArray[Ycord][i] = dibdumper.rgbToPel(255,0,0);
-         }
-         
-         for (i = 0; i < bmpInfoHeader_biHeight; i++)
-         {
-            imageArray[i][Xcord] = dibdumper.rgbToPel(255,0,0);
-         }
-         
+         Ycord = ySum / pelSum;      
       }
       
-      catch (IOException e){
+      catch (IOException e)
+      {
          System.out.println("ur mom");
          e.printStackTrace();
       }
       
       
+      //cropping
       
       
+      int cropHeight = 128;
+      int cropWidth = 96;
+      int[][] newImageArray = new int[cropHeight][cropWidth];
+      bmpInfoHeader_biHeight = cropHeight;
+      bmpInfoHeader_biWidth = cropWidth;
+      
+      for (i = 0; i < cropHeight; i++)
+      {
+         for (j = 0; j < cropWidth; j++)
+         {
+            newImageArray[i][j] = imageArray[Ycord + i - cropHeight / 2][Xcord + j - cropWidth / 2];
+         }
+      }
       
       
       
@@ -897,7 +903,7 @@ typedef RGBQUAD FAR* LPRGBQUAD;
             {
             for (j = 0; j < bmpInfoHeader_biWidth; ++j) // and the columns
                {
-               pel = imageArray[i][j];
+               pel = newImageArray[i][j];
                rgbQuad_rgbBlue  = pel & 0x00FF;
                rgbQuad_rgbGreen = (pel >> 8)  & 0x00FF;
                rgbQuad_rgbRed   = (pel >> 16) & 0x00FF;
