@@ -249,19 +249,19 @@ public class DibDump
       DibDump dibdumper = new DibDump(); // needed to get to the byte swapping methods
 
       if (args.length > 0)
-         inFileName = args[0];
+         inFileName = "dataset/in/" + args[0];
       else
          inFileName = "test1.bmp";
 
       if (args.length > 1)
-         outFileName = args[1];
+         outFileName = "dataset/fin/" + args[1];
       else
-         outFileName = args[0].substring(0, args[0].indexOf(".")) + "_cropped.bmp";
+         outFileName = "dataset/fin/" + args[0].substring(0, args[0].indexOf(".")) + "_cropped.bmp";
       
       if (args.length > 2)
          outText = args[2];
       else
-         outText = args[0].substring(0, args[0].indexOf(".")) + "_activations.txt";
+         outText = "activation files/" + args[0].substring(0, args[0].indexOf(".")) + "_activations.txt";
       
       
 
@@ -812,6 +812,8 @@ typedef RGBQUAD FAR* LPRGBQUAD;
                pel = imageArray[i][j];
                pel = dibdumper.colorToGrayscale(pel);           
                pel = ~pel + 256;
+               
+               
                imageArray[i][j] = pel;
                pel = dibdumper.pelToRGB(pel).blue;
                writer.write(((double)pel / 256.0) + "\n");
@@ -840,8 +842,8 @@ typedef RGBQUAD FAR* LPRGBQUAD;
       //cropping
       
       
-      int cropHeight = 128;
-      int cropWidth = 96;
+      int cropHeight = 132;
+      int cropWidth = 128;
       int[][] newImageArray = new int[cropHeight][cropWidth];
       bmpInfoHeader_biHeight = cropHeight;
       bmpInfoHeader_biWidth = cropWidth;
