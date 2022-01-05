@@ -12,11 +12,7 @@
 #error threshold
 --------------------------(line break, inputs)
 NumInputSize
-#INPUT 0,1
-#INPUT 1,1
-#INPUT 1,n
-#INPUT 2,1
-#INPUT n,n
+#input file repository
 --------------------------(linebreak, truth table)
 #OUTPUT 0,1
 #OUTPUT 1,1
