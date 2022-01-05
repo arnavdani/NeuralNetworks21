@@ -1,8 +1,10 @@
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.Scanner;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.text.DecimalFormat;
+import java.util.Scanner;
+
 
 /**
  * @author Arnav Dani
@@ -27,6 +29,7 @@ import java.io.IOException;
 public class Network 
 {
    double[][] inputs;      //input activations read in
+   Image[] inputFileNames; //stores the file names of input images
    double[][][] weights;   //weights in the network
    double[][] activations; //generalizing all the layers into one array
    double[][] truthtable;  //truth table with ideal outputs
@@ -40,10 +43,12 @@ public class Network
    int n_outputs;          //number of outputs
    double start;           //start of random range
    double end;             //end of random range
+   int n_correct;            //number of objects correctly identified - used when running
    int inputSetSize;       //size of training set
    double maxError;        //largest error from a single pass
    double totalError;      //sum of all errors from a single pass
    int dimCount;           //max dimensions; used to initialize arrays to fit everything
+   
    
    /*
     * exit condition variables
@@ -53,6 +58,7 @@ public class Network
    final int N_ERRORCHECKS = 3;
    boolean[] exitConditions;
    int curr_iters;               //current number of iterations
+   double initialLambda;
    double lambda;                //learning rate
    boolean repeat;               //says whether to do another training pass
    boolean train;                //says whether the network is training or running
@@ -83,6 +89,9 @@ public class Network
     */
    File inputFile;
    FileWriter outputFile;
+   File inActivations;
+   String actFileName;
+   File actFile;
    
    /**
     * Constructor for the network class
@@ -112,14 +121,24 @@ public class Network
    public void configureNetwork()
    {  
       n_layers = 4;
-      n_conns = 3;   
+      n_conns = n_layers - 1;            //4 layers means 3 sets of connections, #conns always 1 less   
       
       dimCount = Math.max(n_inputs, n_hiddens1); 
       dimCount = Math.max(dimCount, n_hiddens2); 
       dimCount = Math.max(dimCount, n_outputs);           //to ensure all connections are represented
       
-      weights = new double[n_conns][dimCount][dimCount]; //weights are between layers A-B B-C C-D 
-      activations = new double[n_layers][dimCount];
+      //weights = new double[n_conns][dimCount][dimCount]; //weights are between layers A-B B-C C-D 
+      weights = new double[n_conns][][];
+      weights[0] = new double[n_inputs][n_hiddens1];
+      weights[1] = new double[n_hiddens1][n_hiddens2];
+      weights[2] = new double[n_hiddens2][n_outputs];
+      
+      
+      activations = new double[n_layers][];
+      activations[0] = new double[n_inputs];
+      activations[1] = new double[n_hiddens1];
+      activations[2] = new double[n_hiddens2];
+      activations[3] = new double[n_outputs];
       
       if (train)
       {
@@ -135,18 +154,21 @@ public class Network
       }
          
       resetNetwork();
+      
+      System.out.println("Network Configured");
    } //public void configureNetwork()
    
    /**
-    * identifies the type of targets
-    * temporary method, only used for printing when training on binary gates
+    * identifies the type of targets to clarify prints
     */
    public void setTargets()
    {
       outNames = new String[n_outputs];
-      outNames[0] = "OR";
-      outNames[1] = "AND";
-      outNames[2] = "XOR";
+      outNames[0] = "out 0 val";
+      outNames[1] = "out 1 val";
+      outNames[2] = "out 2 val";
+      outNames[3] = "out 3 val";
+      outNames[4] = "out 4 val";
    } //public void setTargets()
       
    /**
@@ -331,7 +353,7 @@ public class Network
          thetas[2][i] = val;
          omega[i] = getError(i, input);
          errorVals[input][i] = omega[i];
-         psiLowerI[i] = omega[i] * actDeriv(thetas[2][i]);        
+         psiLowerI[i] = omega[i] * actDeriv(thetas[2][i]);
       } //for (int i = 0; i < n_outputs; i++)
    } //public void trainCalcOutput(int input)
    
@@ -409,16 +431,33 @@ public class Network
     */
    public void randomizeWeights()
    {
-      for (int n = 0; n < n_conns; n++)
+      
+      for (int i = 0; i < n_inputs; i++)
       {
-         for (int k = 0; k < dimCount; k++)
+         for (int j = 0; j < n_hiddens1; j++)
          {
-            for (int j = 0; j < dimCount; j++)
-            {
-               weights[n][k][j] = randomgen(start, end); 
-            }
-         } //for (int k = 0; k < dimCount; k++)
-      } // for (int n = 0; n < n_layers; n++) 
+            weights[0][i][j] = randomgen(start, end);
+         }
+      } //for (int i = 0; i < n_inputs; i++)
+      
+      for (int i = 0; i < n_hiddens1; i++)
+      {
+         for (int j = 0; j < n_hiddens2; j++)
+         {
+            weights[1][i][j] = randomgen(start, end);
+         }
+      } //for (int i = 0; i < n_hiddens1; i++)
+      
+      for (int i = 0; i < n_hiddens2; i++)
+      {
+         for (int j = 0; j < n_outputs; j++)
+         {
+            weights[2][i][j] = randomgen(start, end);
+         }
+      } //for (int i = 0; i < n_hiddens2; i++)
+      
+      System.out.println("weights randomized");
+      
    } //public void randomizeWeights()
    
    
@@ -437,9 +476,9 @@ public class Network
          omegaJ = 0.0;    
          for (int i = 0; i < n_outputs; i++)
          {
-            omegaJ += psiLowerI[i] * weights[2][j][i];            
+            omegaJ += psiLowerI[i] * weights[2][j][i]; 
             weights[2][j][i] += lambda * activations[2][j] * psiLowerI[i];
-         } //for (int i = 0; i < n_outputs; i++)
+         } //for (int i = 0; i < nef_outputs; i++)
          
          upperPsiJ[j] = omegaJ * actDeriv(thetas[1][j]);
          
@@ -462,6 +501,7 @@ public class Network
          }//for (int m = 0; m < n_inputs; m++)
          
       } //for (int k = 0; k < n_hiddens1; k++)
+      
    } //public void calculateWeights(int input)   
    
    /**
@@ -482,7 +522,7 @@ public class Network
       /*
        * check 1 - if lambda is zero
        */
-      if (lambda == 0)
+      if (lambda <= 0)
             exitConditions[0] = true;
       
       /*
@@ -566,7 +606,13 @@ public class Network
          
          curr_iters++;
          
-         if (indexMod == 3)   //only checks to exit after all 4 sets of inputs are passed
+         if (curr_iters % 500 == 0)
+         {
+            lambda = lambda - 0.01;
+            System.out.println("Iteration " + curr_iters + " Error: " + errorVals[indexMod][0]);
+         }    
+         
+         if (indexMod == inputSetSize - 1)   //only checks to exit after all 4 sets of inputs are passed
          {
             if (checkExit())
             {
@@ -581,7 +627,7 @@ public class Network
       finishTraining();
    } //public void train()
    
-   /*
+   /**
     * getting results and printing
     * 
     * Lists all the reasons why the training sequence terminated and 
@@ -631,46 +677,74 @@ public class Network
     */
    public void displayRunResults(int n)
    {
-      System.out.println("Run Complete - Inputs: " + (int)inputs[n][0] + " " +
-               (int)inputs[n][1]);
+      System.out.println("Run Complete - Input: " + inputFileNames[n].getName());
       
-      for (int i = 0; i < n_outputs; i++)
-      {
-         System.out.println("Output " + outNames[i] + ": " + activations[3][i]);
-      }       
+
+      System.out.print("Output " + outNames[n] + ": " + interpretOutput(n) + "\t");
+      
+      System.out.println("Accuracy: " + (double)n_correct / (double)inputSetSize);
    } //public void displayRunResults(int n)
    
+   /**
+    * returns a string of the output array that can fit on a single line
+    * @return String interpretation of output array
+    */
+   public String showOutputsDetailed(int n)
+   {
+      DecimalFormat df = new DecimalFormat("#.###");
+      String outputList = null;
+      outputList = "\tExpected Output " + inputFileNames[n].getTruth() + "\n";
+      for (int i = 0; i < n_outputs; i++)
+      {
+         outputList += outNames[i] + ": " + df.format(activations[3][i]) + " Err: " + df.format(errorVals[n][i]) + "\t\n";
+      }
+      return outputList;
+   }
    
    /*
     * prints important results from training in a table like readable format
+    * @param n represents the input
     */
    public void displayTrainResults(int n)
    {
-         System.out.println("\nRun Complete - Inputs: " + (int)inputs[n][0] + " " +
-               (int)inputs[n][1]);
-         
-         for (int i = 0; i < n_outputs; i++)
-         {
-            System.out.println("\t\tExpected Output :" + truthtable[n][i] +
-               "\t\tOutput: " + activations[3][i] + "\t\tError: " + errorVals[n][i]);
-         } //for (int i = 0; i < n_outputs; i++)        
+      System.out.print("Run Complete - Input: " + inputFileNames[n].getName());
+      System.out.println(showOutputsDetailed(n));             
    } //public void displayTrainResults(int n)
-   
    
    /*
     * prints the key details of the configuration of the network like
-    * 
-    * learning rate
-    * dimensions
-    * random ranges
+    * learning rate, dimensions, random ranges, etc
     */
    public void displayNetworkConfig()
    {
-      System.out.println("Lambda: " + lambda + "\nNumber of inputs: " + n_inputs + "\nNumber of hiddens1 :" + n_hiddens1 + 
+      System.out.println("Initial Lambda: " + initialLambda + "\nFinal Lambda: " + lambda + 
+            "\nNumber of inputs: " + n_inputs + "\nNumber of hiddens1 :" + n_hiddens1 + 
             "\nNumber of hiddens2: " + n_hiddens2 + "\nNumber of outputs: " +
             n_outputs + "\nWeight generation information: Min value: " + 
             start + "\tMax value: " + end + "\nPreloaded weights: " + preload + 
             "\nExecution time in ms: " + elapsed + " ms\n"); 
+   }
+   
+   /**
+    * interprets the n outputs of the network
+    * by returning the index of the maximum value
+    * 
+    * This means that the outputs can be treated as a probability scale from 0 to 1
+    * @return
+    */
+   public double interpretOutput(int n)
+   {
+      double max = 0;
+      for (int i = 0; i < n_outputs; i++)
+      {
+         if (activations[3][i] > activations[3][(int)max])
+               max = i;
+      }
+      
+      if (inputFileNames[n].getTruth() == max)
+         n_correct++;
+      
+      return max;
    }
    
    /*
@@ -682,19 +756,17 @@ public class Network
       try 
       {
          FileWriter fw = outputFile;
-         int one = 1;
-         int zero = 0;
          
          //writing important info
-         fw.write("output.txt\n");      //rewrites itself if retrained
+         fw.write(endTime + "output.txt\n");      //rewrites itself if retrained
          fw.write(n_inputs + "\n");
          fw.write(n_hiddens1 + "\n");
          fw.write(n_hiddens2 + "\n");
          fw.write(n_outputs + "\n");
-         fw.write(lambda + "\n");
+         fw.write(initialLambda + "\n");
          fw.write(n_iters + "\n");
-         fw.write(zero + "\n");       //there is no reason to retrain, so new file should not be trained with
-         fw.write(one + "\n");        //weights must be fixed, not randomized, thats why training happened
+         fw.write(0 + "\n");       //there is no reason to retrain, so new file should not be trained with
+         fw.write(1 + "\n");        //weights must be fixed, not randomized, thats why training happened
          fw.write(start + "\n");
          fw.write(end + "\n");
          fw.write(e_thresh + "\n");
@@ -704,14 +776,8 @@ public class Network
          //writing inputs
          
          fw.write(inputSetSize + "\n");
-         
-         for (int i = 0; i < inputSetSize; i++)
-         {
-            for (int j = 0; j < n_inputs; j++)
-            {
-               fw.write(inputs[i][j] + "\n");   
-            }
-         } //for (int i = 0; i < inputSetSize; i++)
+         fw.write(actFileName + "\n");
+    
          
          //writing truthtable
          
@@ -768,7 +834,7 @@ public class Network
     */
    public void readfile()
    {  
-      //finds file
+    //finds file
       Scanner sc = null;
       try 
       {
@@ -815,6 +881,7 @@ public class Network
       n_outputs = outputs;
       n_iters = numit;
       lambda = lam;
+      initialLambda = lam;
       start = minr;
       end = maxr;
       
@@ -830,16 +897,9 @@ public class Network
       //inputs      
       inputSetSize = sc.nextInt();
       inputs = new double[inputSetSize][n_inputs];
-      
-      for (int i = 0; i < inputSetSize; i++)
-      {
-         for (int j = 0; j < n_inputs; j++)
-         {
-            inputs[i][j] = sc.nextDouble();     
-         }
-      } //for (int i = 0; i < inputSetSize; i++)
-      
       sc.nextLine();
+      actFileName = sc.nextLine();
+      
       sc.nextLine();
       
       //truthtable   
@@ -888,6 +948,50 @@ public class Network
       } //if (preload)
  
       sc.close();
+      
+      actFile = new File("C:\\Users\\arnav\\eclipse-workspace\\ATCS NNs\\src\\" + actFileName);
+      sc = null;
+      try 
+      {
+         sc = new Scanner(actFile);
+      } 
+      catch (FileNotFoundException e) 
+      {
+         // TODO Auto-generated catch block
+         e.printStackTrace();
+      }
+      
+      inputFileNames = new Image[inputSetSize];
+      
+      for (int i = 0; i < inputSetSize; i++)
+      {
+         inputFileNames[i] = new Image(sc.nextLine());     
+      } //for (int i = 0; i < inputSetSize; i++)
+      
+      sc.close();
+      
+      for (int i = 0; i < inputSetSize; i++)
+      {
+         Image current = inputFileNames[i];
+         if (train)
+         {
+            current.calcTruthTrain();
+         }
+         else
+         {
+            current.calcTruthTest();
+         }
+         current.populateValues();
+         
+         double currInputs[] = current.getArray();
+         for (int j = 0; j < n_inputs; j++)
+         {
+            inputs[i][j] = currInputs[j]; 
+         }
+      } //for (int i = 0; i < inputSetSize; i++)
+      
+      System.out.println("file reading complete");
+      
    } //public void readfile()
    
    /**
