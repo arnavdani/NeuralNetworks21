@@ -801,59 +801,67 @@ typedef RGBQUAD FAR* LPRGBQUAD;
       int Xcord = 0;
       int Ycord = 0;
       int pelSum = 0;
+      int[][] newImageArray;
       
-      try {
-         FileWriter writer = new FileWriter(outText);
          
-         for (i = 0; i < bmpInfoHeader_biHeight; i++)
-         {
-            for (j = 0; j < bmpInfoHeader_biWidth; j++)
-            {
-               pel = imageArray[i][j];
-               pel = dibdumper.colorToGrayscale(pel);           
-               pel = ~pel + 256;
-               
-               
-               imageArray[i][j] = pel;
-               pel = dibdumper.pelToRGB(pel).blue;
-               writer.write(((double)pel / 256.0) + "\n");
-               
-               //center of mass
-               
-               pelSum += pel;
-               xSum += pel * j;
-               ySum += pel * i;
-            }
-         }
          
-         writer.close();
-         
-         Xcord = xSum / pelSum;
-         Ycord = ySum / pelSum;      
-      }
-      
-      catch (IOException e)
+      for (i = 0; i < bmpInfoHeader_biHeight; i++)
       {
-         System.out.println("ur mom");
-         e.printStackTrace();
+         for (j = 0; j < bmpInfoHeader_biWidth; j++)
+         {
+            pel = imageArray[i][j];
+            pel = dibdumper.colorToGrayscale(pel);           
+            pel = ~pel + 256;
+               
+               
+            imageArray[i][j] = pel;
+            
+               
+               
+            //center of mass
+            pel = dibdumper.pelToRGB(pel).blue;   
+            pelSum += pel;
+            xSum += pel * j;
+            ySum += pel * i;
+         }
       }
-      
+             
+         
+      Xcord = xSum / pelSum;
+      Ycord = ySum / pelSum;      
       
       //cropping
       
       
-      int cropHeight = 132;
-      int cropWidth = 128;
-      int[][] newImageArray = new int[cropHeight][cropWidth];
+      int cropHeight = 60;
+      int cropWidth = 80;
+      newImageArray = new int[cropHeight][cropWidth];
       bmpInfoHeader_biHeight = cropHeight;
       bmpInfoHeader_biWidth = cropWidth;
-      
-      for (i = 0; i < cropHeight; i++)
+         
+      try
       {
-         for (j = 0; j < cropWidth; j++)
+         
+         FileWriter writer = new FileWriter(outText);
+      
+         for (i = 0; i < cropHeight; i++)
          {
-            newImageArray[i][j] = imageArray[Ycord + i - cropHeight / 2][Xcord + j - cropWidth / 2];
+            for (j = 0; j < cropWidth; j++)
+            {
+               newImageArray[i][j] = imageArray[Ycord + i + 5 - cropHeight / 2][Xcord + j - cropWidth / 2];
+               pel = newImageArray[i][j];
+               pel = dibdumper.pelToRGB(pel).blue;
+               writer.write(((double)pel / 256.0) + "\n");
+            }
          }
+         
+         writer.close();
+      }
+      
+      catch (IOException e)
+      {
+         System.out.println("LSIDJLFKSDJLSKDF");
+         e.printStackTrace();
       }
       
       
