@@ -204,8 +204,9 @@ public class Network
       return  1.0 / (1.0 + Math.exp(-x));
       
       //tanh
-      //double e2x = Math.exp(2 * x);
-      //return (e2x - 1.0) / (e2x + 1.0);
+      //double ex = Math.exp(x);
+      //double emx = Math.exp(-x);
+      //return (ex - emx) / (ex + emx);
    }
    
    /**
@@ -400,6 +401,8 @@ public class Network
    public void run()
    {
       setTargets(); //helps split between the 3 output cases
+      
+      displayNetworkConfig();
       
       for (int i = 0; i < inputSetSize; i++)
       {
@@ -604,13 +607,29 @@ public class Network
          int indexMod = curr_iters % inputSetSize;
          calculateWeights(indexMod);
          
-         curr_iters++;
+         
+         double outsum = 0.0;
+         for (int i = 0; i < n_outputs; i++)
+         {
+            outsum += errorVals[indexMod][i] * errorVals[indexMod][i];
+         }
+         
+         outsum = outsum / 2;
+         
+         
+         
+         if (curr_iters % inputSetSize == 0)
+         {   
+            System.out.println("Iteration " + curr_iters + " Error: " + outsum);
+         }
          
          if (curr_iters % 500 == 0)
          {
-            lambda = lambda - 0.01;
-            System.out.println("Iteration " + curr_iters + " Error: " + errorVals[indexMod][0]);
-         }    
+            lambda = Math.pow(2, curr_iters / 8000) *  initialLambda;
+         }
+         
+         
+         curr_iters++;
          
          if (indexMod == inputSetSize - 1)   //only checks to exit after all 4 sets of inputs are passed
          {
@@ -678,12 +697,34 @@ public class Network
    public void displayRunResults(int n)
    {
       System.out.println("Run Complete - Input: " + inputFileNames[n].getName());
-      
+      System.out.println(showTruths(n));
+      System.out.println(showOutputs());
 
-      System.out.print("Output " + outNames[n] + ": " + interpretOutput(n) + "\t");
+      System.out.print("Final Interpretation: " + interpretOutput(n) + "\t");
       
-      System.out.println("Accuracy: " + (double)n_correct / (double)inputSetSize);
    } //public void displayRunResults(int n)
+   
+   public String showTruths(int n)
+   {
+      String truth = "Exp Output: \t";
+      for (int i = 0; i < n_outputs; i++)
+      {
+         truth+= truthtable[n][i] + "\t";
+      }
+      return truth;
+   }
+   
+   public String showOutputs()
+   {
+      DecimalFormat df = new DecimalFormat("#.###");
+      String truth = "Outputs: \t";
+      for (int i = 0; i < n_outputs; i++)
+      {
+         truth+= df.format(activations[3][i]) + "\t";
+      }
+      return truth;
+   }
+   
    
    /**
     * returns a string of the output array that can fit on a single line
@@ -732,9 +773,9 @@ public class Network
     * This means that the outputs can be treated as a probability scale from 0 to 1
     * @return
     */
-   public double interpretOutput(int n)
+   public int interpretOutput(int n)
    {
-      double max = 0;
+      int max = 0;
       for (int i = 0; i < n_outputs; i++)
       {
          if (activations[3][i] > activations[3][(int)max])
@@ -744,7 +785,7 @@ public class Network
       if (inputFileNames[n].getTruth() == max)
          n_correct++;
       
-      return max;
+      return max + 1;
    }
    
    /*
@@ -836,6 +877,7 @@ public class Network
    {  
     //finds file
       Scanner sc = null;
+      
       try 
       {
          sc = new Scanner(inputFile);
@@ -979,7 +1021,7 @@ public class Network
          }
          else
          {
-            current.calcTruthTest();
+            //current.calcTruthTest();
          }
          current.populateValues();
          
@@ -1006,10 +1048,13 @@ public class Network
    {
       File iFile = null;
       
+      
       if (args.length > 0)        //checks if argument has been passed in
       {
-      iFile = new File("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\" + 
-                        args[0]); //input file
+         iFile = new File("C:\\Users\\arnav\\OneDrive\\XPS\\School Files\\12\\NNs\\control file stuff\\" + args[0]); //input file
+         
+         
+      
       }
       else                       //default file
       {
