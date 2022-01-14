@@ -936,6 +936,7 @@ typedef RGBQUAD FAR* LPRGBQUAD;
                   }
                }
             } // for (i = bmpInfoHeader_biHeight - 1; i >= 0; --i)
+         
 
          out.close();
          fstream.close();
